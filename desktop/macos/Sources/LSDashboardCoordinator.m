@@ -90,6 +90,7 @@
     self.launchInFlight = YES;
     NSWorkspaceOpenConfiguration *configuration = [[NSWorkspaceOpenConfiguration alloc] init];
     configuration.activates = NO;
+    configuration.arguments = @[@"--config", self.runtime.configURL.path];
 
     [[NSWorkspace sharedWorkspace] openApplicationAtURL:menuAgentURL
                                           configuration:configuration

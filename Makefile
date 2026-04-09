@@ -12,7 +12,7 @@ fmt:
 	go fmt ./...
 
 run:
-	go run ./cmd/llamasitter serve -config config.example.yaml
+	go run ./cmd/llamasitter serve --config config.example.yaml
 
 build-macos-app:
 	bash ./scripts/build-macos-app.sh

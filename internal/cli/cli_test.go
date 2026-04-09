@@ -128,6 +128,32 @@ func TestGenerateReferenceDocs(t *testing.T) {
 	}
 }
 
+func TestFirstExistingPath(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "missing")
+	existing := filepath.Join(dir, "existing")
+	if err := os.Mkdir(existing, 0o755); err != nil {
+		t.Fatalf("mkdir existing: %v", err)
+	}
+
+	got := firstExistingPath([]string{"", missing, existing})
+	if got != existing {
+		t.Fatalf("expected %s, got %s", existing, got)
+	}
+}
+
+func TestDesktopCompanionBundleCandidatesHonorsOverride(t *testing.T) {
+	override := "/tmp/LlamaSitterMenu.app"
+	t.Setenv("LLAMASITTER_MENU_AGENT_APP", override)
+
+	candidates := desktopCompanionBundleCandidates()
+	if len(candidates) == 0 || candidates[0] != override {
+		t.Fatalf("expected override candidate first, got %#v", candidates)
+	}
+}
+
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

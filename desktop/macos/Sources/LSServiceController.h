@@ -17,6 +17,7 @@ typedef void (^LSServiceStatusHandler)(LSServiceStatus status, NSURL * _Nullable
 
 @property (nonatomic, readonly) LSServiceStatus status;
 @property (nonatomic, copy, nullable) LSServiceStatusHandler onStatusChange;
+@property (nonatomic, assign, getter=isAttachOnly) BOOL attachOnly;
 
 - (instancetype)initWithRuntime:(LSRuntimeConfig *)runtime NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;

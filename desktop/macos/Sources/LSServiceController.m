@@ -9,6 +9,7 @@
 @property (nonatomic, strong, nullable) NSTask *task;
 @property (nonatomic, strong, nullable) NSFileHandle *logHandle;
 @property (nonatomic, assign) BOOL intentionalStop;
+@property (nonatomic, assign) BOOL attachedToExternalService;
 
 @end
 
@@ -31,6 +32,7 @@
 
 - (void)start {
     [self stopTaskIfNeeded];
+    self.attachedToExternalService = NO;
 
     NSArray<NSString *> *occupied = [LSPortCheck unavailableAddressesInAddresses:@[
         self.runtime.proxyListenAddr,
@@ -38,13 +40,20 @@
     ]];
     if (occupied.count > 0) {
         NSString *message = [NSString stringWithFormat:
-                             @"LlamaSitter will not attach to an existing service.\n\n"
-                             @"The following configured ports are already in use:\n"
-                             @"%@\n\n"
-                             @"Free those ports or update %@.",
-                             [occupied componentsJoinedByString:@"\n"],
+                             @"Connecting to the LlamaSitter service already using:\n%@",
+                             [occupied componentsJoinedByString:@"\n"]];
+        [self updateStatus:LSServiceStatusStarting dashboardURL:nil message:message];
+        self.attachedToExternalService = YES;
+        [self waitForReadyForTask:nil deadlineSeconds:20.0 startupDescription:@"the existing LlamaSitter service"];
+        return;
+    }
+
+    if (self.attachOnly) {
+        NSString *message = [NSString stringWithFormat:
+                             @"Waiting for a LlamaSitter service started with %@.",
                              self.runtime.configURL.path];
-        [self updateStatus:LSServiceStatusFailed dashboardURL:nil message:message];
+        [self updateStatus:LSServiceStatusStarting dashboardURL:nil message:message];
+        [self waitForReadyForTask:nil deadlineSeconds:20.0 startupDescription:@"the externally started LlamaSitter service"];
         return;
     }
 
@@ -68,9 +77,12 @@
 
     NSTask *task = [[NSTask alloc] init];
     task.executableURL = self.runtime.backendExecutableURL;
-    task.arguments = @[@"serve", @"-config", self.runtime.configURL.path];
+    task.arguments = @[@"serve", @"--config", self.runtime.configURL.path];
     task.standardOutput = logHandle;
     task.standardError = logHandle;
+    NSMutableDictionary<NSString *, NSString *> *environment = [[[NSProcessInfo processInfo] environment] mutableCopy];
+    environment[@"LLAMASITTER_DESKTOP_MANAGED"] = @"1";
+    task.environment = environment;
 
     __weak typeof(self) weakSelf = self;
     task.terminationHandler = ^(NSTask *finishedTask) {
@@ -117,12 +129,13 @@
 
     self.task = task;
     [self updateStatus:LSServiceStatusStarting dashboardURL:nil message:nil];
-    [self waitForReadyWithTask:task];
+    [self waitForReadyForTask:task deadlineSeconds:20.0 startupDescription:@"the bundled LlamaSitter service"];
 }
 
 - (void)stop {
     self.intentionalStop = YES;
     [self stopTaskIfNeeded];
+    self.attachedToExternalService = NO;
     [self updateStatus:LSServiceStatusIdle dashboardURL:nil message:nil];
 }
 
@@ -157,23 +170,30 @@
     self.task = nil;
 }
 
-- (void)waitForReadyWithTask:(NSTask *)task {
+- (void)waitForReadyForTask:(nullable NSTask *)task deadlineSeconds:(NSTimeInterval)deadlineSeconds startupDescription:(NSString *)startupDescription {
     NSURL *readyURL = self.runtime.readyURL;
     NSURL *dashboardURL = self.runtime.uiBaseURL;
-    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:20.0];
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:deadlineSeconds];
 
     __weak typeof(self) weakSelf = self;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         while (deadline.timeIntervalSinceNow > 0) {
             typeof(self) strongSelf = weakSelf;
-            if (!strongSelf || task != strongSelf.task || !task.running) {
+            if (!strongSelf) {
+                return;
+            }
+
+            if (task && (task != strongSelf.task || !task.running)) {
                 return;
             }
 
             if ([strongSelf isReadyAtURL:readyURL]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     typeof(self) innerSelf = weakSelf;
-                    if (!innerSelf || task != innerSelf.task) {
+                    if (!innerSelf) {
+                        return;
+                    }
+                    if (task && task != innerSelf.task) {
                         return;
                     }
                     [innerSelf updateStatus:LSServiceStatusReady dashboardURL:dashboardURL message:nil];
@@ -186,15 +206,34 @@
 
         dispatch_async(dispatch_get_main_queue(), ^{
             typeof(self) strongSelf = weakSelf;
-            if (!strongSelf || task != strongSelf.task || !task.running) {
+            if (!strongSelf) {
+                return;
+            }
+            if (task && (task != strongSelf.task || !task.running)) {
                 return;
             }
 
-            NSString *message = [NSString stringWithFormat:
-                                 @"LlamaSitter did not become ready within 20 seconds.\n\n"
-                                 @"Check the backend log at:\n"
-                                 @"%@",
-                                 strongSelf.runtime.stdoutLogURL.path];
+            NSString *message = nil;
+            if (task) {
+                message = [NSString stringWithFormat:
+                           @"LlamaSitter did not become ready from %@ within %.0f seconds.\n\n"
+                           @"Check the backend log at:\n"
+                           @"%@",
+                           startupDescription,
+                           deadlineSeconds,
+                           strongSelf.runtime.stdoutLogURL.path];
+            } else {
+                message = [NSString stringWithFormat:
+                           @"LlamaSitter did not become ready from %@ within %.0f seconds.\n\n"
+                           @"Confirm the service is running with:\n"
+                           @"%@\n\n"
+                           @"and that the UI listener at %@ is reachable.",
+                           startupDescription,
+                           deadlineSeconds,
+                           strongSelf.runtime.configURL.path,
+                           strongSelf.runtime.uiListenAddr];
+            }
+            strongSelf.attachedToExternalService = NO;
             [strongSelf updateStatus:LSServiceStatusFailed dashboardURL:nil message:message];
         });
     });

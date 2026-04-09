@@ -26,10 +26,62 @@ static NSError *LSRuntimeConfigError(NSString *message) {
 @property (nonatomic, readwrite, copy) NSString *uiListenAddr;
 @property (nonatomic, readwrite, strong) NSURL *uiBaseURL;
 @property (nonatomic, readwrite, strong) NSURL *readyURL;
+@property (nonatomic, readwrite, assign, getter=isAttachOnly) BOOL attachOnly;
 
 @end
 
 @implementation LSRuntimeConfig
+
++ (nullable NSString *)configOverridePathFromProcessInfo {
+    NSDictionary<NSString *, NSString *> *environment = [NSProcessInfo processInfo].environment;
+    NSString *environmentValue = environment[@"LLAMASITTER_DESKTOP_CONFIG"];
+    if (environmentValue.length > 0) {
+        return [environmentValue stringByExpandingTildeInPath];
+    }
+
+    NSArray<NSString *> *arguments = [NSProcessInfo processInfo].arguments;
+    for (NSUInteger index = 1; index < arguments.count; index += 1) {
+        NSString *argument = arguments[index];
+        if ([argument isEqualToString:@"--config"] || [argument isEqualToString:@"-c"]) {
+            if (index + 1 < arguments.count) {
+                return [arguments[index + 1] stringByExpandingTildeInPath];
+            }
+            break;
+        }
+
+        if ([argument hasPrefix:@"--config="]) {
+            NSString *value = [argument substringFromIndex:[@"--config=" length]];
+            if (value.length > 0) {
+                return [value stringByExpandingTildeInPath];
+            }
+        }
+    }
+
+    return nil;
+}
+
++ (BOOL)attachOnlyFromProcessInfo {
+    NSDictionary<NSString *, NSString *> *environment = [NSProcessInfo processInfo].environment;
+    NSString *environmentValue = environment[@"LLAMASITTER_DESKTOP_ATTACH_ONLY"];
+    if (environmentValue.length > 0) {
+        NSString *normalized = environmentValue.lowercaseString;
+        if ([normalized isEqualToString:@"1"] ||
+            [normalized isEqualToString:@"true"] ||
+            [normalized isEqualToString:@"yes"] ||
+            [normalized isEqualToString:@"y"]) {
+            return YES;
+        }
+    }
+
+    NSArray<NSString *> *arguments = [NSProcessInfo processInfo].arguments;
+    for (NSUInteger index = 1; index < arguments.count; index += 1) {
+        if ([arguments[index] isEqualToString:@"--attach-only"]) {
+            return YES;
+        }
+    }
+
+    return NO;
+}
 
 + (NSString *)defaultProxyListenAddr {
     return LSDefaultProxyListenAddr;
@@ -81,11 +133,18 @@ static NSError *LSRuntimeConfigError(NSString *message) {
 
     self.applicationSupportDirectory = [appSupportRoot URLByAppendingPathComponent:@"LlamaSitter" isDirectory:YES];
     self.logsDirectory = logsDirectory;
-    self.configURL = [self.applicationSupportDirectory URLByAppendingPathComponent:@"llamasitter.yaml"];
     self.databaseURL = [self.applicationSupportDirectory URLByAppendingPathComponent:@"llamasitter.db"];
     self.appLogURL = [self.logsDirectory URLByAppendingPathComponent:@"app.log"];
     self.stdoutLogURL = [self.logsDirectory URLByAppendingPathComponent:@"backend.log"];
     self.backendExecutableURL = [resourceURL URLByAppendingPathComponent:@"llamasitter-backend"];
+    self.attachOnly = [[self class] attachOnlyFromProcessInfo];
+
+    NSString *configOverridePath = [[self class] configOverridePathFromProcessInfo];
+    if (configOverridePath.length > 0) {
+        self.configURL = [NSURL fileURLWithPath:configOverridePath];
+    } else {
+        self.configURL = [self.applicationSupportDirectory URLByAppendingPathComponent:@"llamasitter.yaml"];
+    }
 
     if (![fileManager createDirectoryAtURL:self.applicationSupportDirectory
                withIntermediateDirectories:YES
@@ -102,6 +161,12 @@ static NSError *LSRuntimeConfigError(NSString *message) {
     }
 
     if (![fileManager fileExistsAtPath:self.configURL.path]) {
+        if (configOverridePath.length > 0) {
+            if (error) {
+                *error = LSRuntimeConfigError([NSString stringWithFormat:@"Configured LlamaSitter config does not exist at %@.", self.configURL.path]);
+            }
+            return nil;
+        }
         if (![[self class] writeDefaultConfigToURL:self.configURL
                                         databaseURL:self.databaseURL
                                               error:error]) {

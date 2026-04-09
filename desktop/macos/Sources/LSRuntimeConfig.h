@@ -19,6 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, copy) NSString *uiListenAddr;
 @property (nonatomic, readonly, strong) NSURL *uiBaseURL;
 @property (nonatomic, readonly, strong) NSURL *readyURL;
+@property (nonatomic, readonly, assign, getter=isAttachOnly) BOOL attachOnly;
 
 - (nullable instancetype)initWithError:(NSError **)error NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;

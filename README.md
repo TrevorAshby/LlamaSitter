@@ -144,6 +144,8 @@ Supported installer environment variables:
 
 The installer does not edit shell startup files. It installs the CLI into `/usr/local/bin` and warns if that path is not currently on your shell `PATH`.
 
+On macOS, `llamasitter serve` now best-effort launches the installed menu bar companion automatically when [LlamaSitter.app](/Applications/LlamaSitter.app) is present, so the menu icon and dashboard can attach to the same running service even if you started it from Terminal.
+
 ## Manual Install Fallback
 
 If you want to build locally from source instead of using a release:
@@ -244,6 +246,14 @@ open /Users/trevorashby/Desktop/LlamaSitter/build/macos/LlamaSitter.app
 ```
 
 Do not launch `Contents/MacOS/LlamaSitter` directly unless you are intentionally debugging the bundle internals. The embedded background agent is launched automatically from the app bundle when needed.
+
+If you start the service manually from Terminal with:
+
+```bash
+llamasitter serve --config /path/to/llamasitter.yaml
+```
+
+the installed macOS companion will also try to come up automatically and attach to that same config, so the menu icon and dashboard reflect the live service instead of starting a second backend.
 
 ## Project Docs
 

@@ -10,9 +10,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
+	"path/filepath"
+	"runtime"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -55,12 +59,101 @@ func newServeCommand(_ context.Context, logger *slog.Logger, opts *rootOptions) 
 			runCtx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 			defer stop()
 
+			maybeLaunchDesktopCompanion(runCtx, opts.ConfigPath, logger)
+
 			if err := app.Run(runCtx, cfg, logger); err != nil {
 				return commandErrorf("%v", err)
 			}
 			return nil
 		},
 	}
+}
+
+func maybeLaunchDesktopCompanion(ctx context.Context, configPath string, logger *slog.Logger) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	if os.Getenv("LLAMASITTER_DESKTOP_MANAGED") != "" || os.Getenv("LLAMASITTER_NO_DESKTOP_AUTO_LAUNCH") == "1" {
+		return
+	}
+
+	resolvedConfigPath, err := resolveConfigPath(configPath)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("desktop companion auto-launch skipped", "reason", err.Error())
+		}
+		return
+	}
+
+	companionBundlePath := firstExistingPath(desktopCompanionBundleCandidates())
+	if companionBundlePath == "" {
+		if logger != nil {
+			logger.Info("desktop companion not found; continuing without menu icon", "config", resolvedConfigPath)
+		}
+		return
+	}
+
+	go func() {
+		timer := time.NewTimer(750 * time.Millisecond)
+		defer timer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+
+		cmd := exec.Command("/usr/bin/open",
+			"-g",
+			"-j",
+			companionBundlePath,
+			"--args",
+			"--config",
+			resolvedConfigPath,
+			"--attach-only",
+		)
+		cmd.Stdout = io.Discard
+		cmd.Stderr = io.Discard
+		if err := cmd.Start(); err != nil {
+			if logger != nil {
+				logger.Warn("desktop companion auto-launch failed", "bundle", companionBundlePath, "error", err.Error())
+			}
+			return
+		}
+		if cmd.Process != nil {
+			_ = cmd.Process.Release()
+		}
+	}()
+}
+
+func desktopCompanionBundleCandidates() []string {
+	candidates := make([]string, 0, 4)
+	if override := strings.TrimSpace(os.Getenv("LLAMASITTER_MENU_AGENT_APP")); override != "" {
+		candidates = append(candidates, override)
+	}
+
+	paths := []string{"/Applications/LlamaSitter.app"}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		paths = append(paths, filepath.Join(home, "Applications", "LlamaSitter.app"))
+	}
+
+	for _, appPath := range paths {
+		candidates = append(candidates, filepath.Join(appPath, "Contents", "Library", "LoginItems", "LlamaSitterMenu.app"))
+	}
+	return candidates
+}
+
+func firstExistingPath(paths []string) string {
+	for _, candidate := range paths {
+		if strings.TrimSpace(candidate) == "" {
+			continue
+		}
+		info, err := os.Stat(candidate)
+		if err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+	return ""
 }
 
 func newDoctorCommand(_ context.Context, logger *slog.Logger, opts *rootOptions) *cobra.Command {

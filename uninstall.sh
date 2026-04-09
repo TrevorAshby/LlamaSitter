@@ -40,8 +40,16 @@ prompt_yes_no() {
     esac
   fi
 
-  printf '%s ' "${prompt}"
-  read answer || true
+  answer=""
+  if [ -t 0 ]; then
+    printf '%s ' "${prompt}"
+    IFS= read -r answer || true
+  elif [ -r /dev/tty ]; then
+    printf '%s ' "${prompt}" >/dev/tty
+    IFS= read -r answer </dev/tty || true
+  else
+    warn "no interactive terminal available for prompt: ${prompt}"
+  fi
   if [ -z "${answer:-}" ]; then
     answer="${default_answer}"
   fi

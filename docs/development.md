@@ -42,7 +42,7 @@ The combined desktop flow is:
 
 1. The dashboard app creates or reuses the app-managed config in `~/Library/Application Support/LlamaSitter`
 2. The dashboard app launches the embedded menu agent if it is not already running
-3. The menu agent launches the bundled backend with `serve -config ...`
+3. The menu agent launches the bundled backend with `serve --config ...`
 4. The dashboard app polls `GET /readyz`
 5. The dashboard app loads the embedded dashboard into a native AppKit `WKWebView`
 6. The menu agent mirrors a compact live overview into a native menu bar popover

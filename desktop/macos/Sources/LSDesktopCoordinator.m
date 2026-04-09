@@ -77,6 +77,7 @@
     self.overviewFetcher = [[LSOverviewFetcher alloc] initWithBaseURL:runtime.uiBaseURL];
 
     LSServiceController *serviceController = [[LSServiceController alloc] initWithRuntime:runtime];
+    serviceController.attachOnly = runtime.isAttachOnly;
     __weak typeof(self) weakSelf = self;
     serviceController.onStatusChange = ^(LSServiceStatus status, NSURL *dashboardURL, NSString *message) {
         [weakSelf handleServiceStatus:status dashboardURL:dashboardURL message:message];
@@ -91,9 +92,12 @@
         return;
     }
 
-    NSString *message = [NSString stringWithFormat:
-                         @"Launching the bundled local service and waiting for metrics on %@.",
-                         self.runtime.uiListenAddr];
+    NSString *message = self.runtime.isAttachOnly
+        ? [NSString stringWithFormat:@"Connecting to the service defined by %@ and waiting for metrics on %@.",
+           self.runtime.configURL.path,
+           self.runtime.uiListenAddr]
+        : [NSString stringWithFormat:@"Launching the bundled local service and waiting for metrics on %@.",
+           self.runtime.uiListenAddr];
     [self.statusItemController updateLocalStatus:LSServiceStatusStarting message:message];
     self.currentStatus = LSServiceStatusStarting;
     self.currentMessage = message;
@@ -157,6 +161,7 @@
 
     NSWorkspaceOpenConfiguration *configuration = [[NSWorkspaceOpenConfiguration alloc] init];
     configuration.activates = YES;
+    configuration.arguments = @[@"--config", self.runtime.configURL.path];
     [[NSWorkspace sharedWorkspace] openApplicationAtURL:dashboardURL
                                           configuration:configuration
                                       completionHandler:nil];
