@@ -1,0 +1,23 @@
+listeners:
+  - name: default
+    listen_addr: "127.0.0.1:11435"
+    upstream_url: "http://127.0.0.1:11434"
+    default_tags:
+      client_type: "unknown"
+      client_instance: "default"
+
+storage:
+  sqlite_path: "~/.llamasitter/llamasitter.db"
+
+privacy:
+  persist_bodies: false
+  redact_headers:
+    - authorization
+    - proxy-authorization
+  redact_json_fields:
+    - prompt
+    - messages
+
+ui:
+  enabled: true
+  listen_addr: "127.0.0.1:11438"

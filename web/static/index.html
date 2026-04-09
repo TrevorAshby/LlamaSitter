@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LlamaSitter Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="title-group">
+          <p class="eyebrow">Local Ollama observability</p>
+          <h1>LlamaSitter Dashboard</h1>
+          <p class="subtitle">Rolling usage windows, request activity, and per-agent analytics in one local view.</p>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-meta">
+            <span id="status-pill" class="pill">Loading</span>
+            <span id="last-refresh" class="toolbar-note">Fetching the local API…</span>
+          </div>
+
+          <div id="range-control" class="segmented-control" aria-label="Dashboard time range">
+            <button type="button" data-range="day" class="segment active">Day</button>
+            <button type="button" data-range="week" class="segment">Week</button>
+            <button type="button" data-range="month" class="segment">Month</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard-grid">
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Window Overview</p>
+              <h2>Key Metrics</h2>
+            </div>
+            <p id="window-summary" class="panel-note">Last 24 hours</p>
+          </div>
+          <div id="kpi-grid" class="kpi-grid"></div>
+        </section>
+
+        <section class="panel panel-span-8">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Primary Trend</p>
+              <h2 id="timeseries-title">Usage Across Time</h2>
+            </div>
+            <div id="metric-control" class="segmented-control compact" aria-label="Primary chart metric">
+              <button type="button" data-metric="tokens" class="segment active">Tokens</button>
+              <button type="button" data-metric="requests" class="segment">Requests</button>
+              <button type="button" data-metric="latency" class="segment">Latency</button>
+            </div>
+          </div>
+          <div id="timeseries-chart" class="chart-shell"></div>
+        </section>
+
+        <section class="panel panel-span-4">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Cadence</p>
+              <h2>Activity Heatmap</h2>
+            </div>
+            <p class="panel-note">Local time</p>
+          </div>
+          <div id="heatmap-panel" class="heatmap-panel"></div>
+        </section>
+
+        <section class="panel panel-span-4">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Model Mix</p>
+              <h2>Top Models</h2>
+            </div>
+            <p class="panel-note">Ranked by tokens</p>
+          </div>
+          <div id="models-breakdown" class="stack"></div>
+        </section>
+
+        <section class="panel panel-span-4">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Attribution</p>
+              <h2>Top Contributors</h2>
+            </div>
+            <div id="contributor-control" class="segmented-control compact" aria-label="Contributor breakdown mode">
+              <button type="button" data-contributor="instances" class="segment active">Instances</button>
+              <button type="button" data-contributor="agents" class="segment">Agents</button>
+              <button type="button" data-contributor="clients" class="segment">Clients</button>
+            </div>
+          </div>
+          <div id="contributors-breakdown" class="stack"></div>
+        </section>
+
+        <section class="panel panel-span-4">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Session Activity</p>
+              <h2>Active Sessions</h2>
+            </div>
+            <p class="panel-note">Busiest in range</p>
+          </div>
+          <div id="sessions-list" class="stack"></div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Latest Traffic</p>
+              <h2>Recent Requests</h2>
+            </div>
+            <p class="panel-note">Filtered to the active window</p>
+          </div>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Started</th>
+                  <th>Status</th>
+                  <th>Model</th>
+                  <th>Tokens</th>
+                  <th>Duration</th>
+                  <th>Client</th>
+                  <th>Session</th>
+                </tr>
+              </thead>
+              <tbody id="requests-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

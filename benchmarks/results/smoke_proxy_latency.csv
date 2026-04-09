@@ -1,0 +1,14 @@
+row_type,trial_index,prompt_word_count,prompt_char_count,model,direct_http_status,direct_elapsed_ms,direct_prompt_tokens,direct_output_tokens,direct_total_tokens,direct_reported_total_duration_ms,direct_reported_prompt_eval_ms,direct_reported_eval_ms,proxy_http_status,proxy_elapsed_ms,proxy_prompt_tokens,proxy_output_tokens,proxy_total_tokens,proxy_reported_total_duration_ms,proxy_reported_prompt_eval_ms,proxy_reported_eval_ms,elapsed_delta_ms,elapsed_ratio,response_match,error,summary_metric,summary_value
+trial,1,10,169,qwen3-vl:8b,200,306.277,60,8,68,305,79,135,200,258.974,60,8,68,257,20,130,-47.303,0.845555,True,,,
+trial,2,20,255,qwen3-vl:8b,200,285.55,73,8,81,284,78,131,200,239.322,73,8,81,234,19,141,-46.228,0.838109,True,,,
+trial,3,30,341,qwen3-vl:8b,200,315.871,86,8,94,314,78,132,200,240.418,86,8,94,237,19,133,-75.453,0.761127,True,,,
+summary,,,,,,,,,,,,,,,,,,,,,,,,,successful_trials,3.000
+summary,,,,,,,,,,,,,,,,,,,,,,,,,direct_mean_elapsed_ms,302.566
+summary,,,,,,,,,,,,,,,,,,,,,,,,,proxy_mean_elapsed_ms,246.238
+summary,,,,,,,,,,,,,,,,,,,,,,,,,mean_elapsed_delta_ms,-56.328
+summary,,,,,,,,,,,,,,,,,,,,,,,,,direct_median_elapsed_ms,306.277
+summary,,,,,,,,,,,,,,,,,,,,,,,,,proxy_median_elapsed_ms,240.418
+summary,,,,,,,,,,,,,,,,,,,,,,,,,median_elapsed_delta_ms,-47.303
+summary,,,,,,,,,,,,,,,,,,,,,,,,,direct_max_elapsed_ms,315.871
+summary,,,,,,,,,,,,,,,,,,,,,,,,,proxy_max_elapsed_ms,258.974
+summary,,,,,,,,,,,,,,,,,,,,,,,,,max_elapsed_delta_ms,-46.228

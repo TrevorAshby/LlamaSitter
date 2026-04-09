@@ -1,0 +1,29 @@
+# Go
+bin/
+dist/
+*.test
+*.out
+coverage.txt
+llamasitter
+.gocache/
+.gomodcache/
+.swift-module-cache/
+build/
+
+# Dependency and workspace files
+vendor/
+.DS_Store
+
+# SQLite and runtime data
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Local config
+llamasitter.yaml
+*.local.yaml
+
+# IDEs
+.idea/
+.vscode/
