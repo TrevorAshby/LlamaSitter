@@ -4,7 +4,7 @@ dist/
 *.test
 *.out
 coverage.txt
-llamasitter
+/llamasitter
 .gocache/
 .gomodcache/
 .swift-module-cache/
