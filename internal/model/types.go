@@ -59,6 +59,14 @@ type BreakdownRow struct {
 	AvgRequestDurationMs float64 `json:"avg_request_duration_ms"`
 }
 
+type BucketBreakdownEntry struct {
+	Name         string `json:"name"`
+	RequestCount int64  `json:"request_count"`
+	PromptTokens int64  `json:"prompt_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+	TotalTokens  int64  `json:"total_tokens"`
+}
+
 type UsageSummary struct {
 	RequestCount         int64          `json:"request_count"`
 	SuccessCount         int64          `json:"success_count"`
@@ -75,23 +83,31 @@ type UsageSummary struct {
 }
 
 type TimeBucket struct {
-	BucketStart          time.Time `json:"bucket_start"`
-	BucketEnd            time.Time `json:"bucket_end"`
-	Label                string    `json:"label"`
-	RequestCount         int64     `json:"request_count"`
-	SuccessCount         int64     `json:"success_count"`
-	AbortedCount         int64     `json:"aborted_count"`
-	PromptTokens         int64     `json:"prompt_tokens"`
-	OutputTokens         int64     `json:"output_tokens"`
-	TotalTokens          int64     `json:"total_tokens"`
-	AvgRequestDurationMs float64   `json:"avg_request_duration_ms"`
+	BucketStart             time.Time              `json:"bucket_start"`
+	BucketEnd               time.Time              `json:"bucket_end"`
+	Label                   string                 `json:"label"`
+	RequestCount            int64                  `json:"request_count"`
+	SuccessCount            int64                  `json:"success_count"`
+	AbortedCount            int64                  `json:"aborted_count"`
+	PromptTokens            int64                  `json:"prompt_tokens"`
+	OutputTokens            int64                  `json:"output_tokens"`
+	TotalTokens             int64                  `json:"total_tokens"`
+	AvgRequestDurationMs    float64                `json:"avg_request_duration_ms"`
+	ModelBreakdown          []BucketBreakdownEntry `json:"model_breakdown,omitempty"`
+	ClientTypeBreakdown     []BucketBreakdownEntry `json:"client_type_breakdown,omitempty"`
+	ClientInstanceBreakdown []BucketBreakdownEntry `json:"client_instance_breakdown,omitempty"`
+	AgentNameBreakdown      []BucketBreakdownEntry `json:"agent_name_breakdown,omitempty"`
 }
 
 type HeatmapCell struct {
-	Weekday      int   `json:"weekday"`
-	Hour         int   `json:"hour"`
-	RequestCount int64 `json:"request_count"`
-	TotalTokens  int64 `json:"total_tokens"`
+	Weekday                 int                    `json:"weekday"`
+	Hour                    int                    `json:"hour"`
+	RequestCount            int64                  `json:"request_count"`
+	TotalTokens             int64                  `json:"total_tokens"`
+	ModelBreakdown          []BucketBreakdownEntry `json:"model_breakdown,omitempty"`
+	ClientTypeBreakdown     []BucketBreakdownEntry `json:"client_type_breakdown,omitempty"`
+	ClientInstanceBreakdown []BucketBreakdownEntry `json:"client_instance_breakdown,omitempty"`
+	AgentNameBreakdown      []BucketBreakdownEntry `json:"agent_name_breakdown,omitempty"`
 }
 
 type SessionSummary struct {

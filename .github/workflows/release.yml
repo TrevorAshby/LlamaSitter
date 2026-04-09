@@ -1,0 +1,86 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Package Linux release
+        run: |
+          bash ./scripts/package-release.sh package \
+            --version "${GITHUB_REF_NAME}" \
+            --target "linux/${{ matrix.arch }}" \
+            --output-dir dist/release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist/release/*.tar.gz
+
+  package-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            arch: amd64
+          - os: macos-14
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Package macOS release
+        run: |
+          bash ./scripts/package-release.sh package \
+            --version "${GITHUB_REF_NAME}" \
+            --target "darwin/${{ matrix.arch }}" \
+            --output-dir dist/release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/release/*.tar.gz
+
+  publish:
+    needs: [package-linux, package-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/release
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: bash ./scripts/package-release.sh checksums --output-dir dist/release
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/release/*.tar.gz
+            dist/release/SHA256SUMS

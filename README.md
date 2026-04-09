@@ -87,13 +87,85 @@ ui:
 
 ## CLI
 
-Planned command surface:
+LlamaSitter now ships with an explicit nested CLI for both runtime operations and safe config management.
 
-- `llamasitter serve`
-- `llamasitter doctor`
-- `llamasitter stats`
-- `llamasitter tail`
-- `llamasitter export --format csv`
+Common workflows:
+
+```bash
+llamasitter doctor --config llamasitter.yaml
+llamasitter config listener list --config llamasitter.yaml
+llamasitter config listener add --config llamasitter.yaml \
+  --name openwebui \
+  --listen-addr 127.0.0.1:11436 \
+  --upstream-url http://127.0.0.1:11434 \
+  --tag client_type=openwebui \
+  --tag client_instance=docker
+llamasitter config ui set-listen-addr 127.0.0.1:11439 --config llamasitter.yaml
+llamasitter completion zsh > ~/.zsh/completions/_llamasitter
+```
+
+Key CLI conventions:
+
+- `--config PATH` selects the YAML file to inspect or mutate
+- Config mutation commands support `--dry-run`
+- Destructive removal commands require `--yes`
+- `llamasitter desktop config path` prints the macOS app-managed config location explicitly
+
+See [CLI Guide](/Users/trevorashby/Desktop/LlamaSitter/docs/cli.md) for task-oriented workflows and [CLI Reference](/Users/trevorashby/Desktop/LlamaSitter/docs/reference/cli/llamasitter.md) for the generated command docs.
+
+## Install and Uninstall
+
+LlamaSitter now includes release-based install and uninstall scripts designed for a one-line setup flow.
+
+Install the latest release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/trevorashby/llamasitter/main/install.sh | sh
+```
+
+Uninstall LlamaSitter:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/trevorashby/llamasitter/main/uninstall.sh | sh
+```
+
+Supported install targets:
+
+- macOS: installs [LlamaSitter.app](/Applications/LlamaSitter.app) and `/usr/local/bin/llamasitter`
+- Linux: installs `/usr/local/bin/llamasitter`
+- Windows: not supported by the one-line installer yet
+
+Supported installer environment variables:
+
+- `LLAMASITTER_VERSION`: install a specific release tag such as `v0.1.0`
+- `LLAMASITTER_NO_LAUNCH=1`: install on macOS without auto-launching the app
+- `LLAMASITTER_YES=1`: skip the uninstall confirmation for removing installed binaries
+- `LLAMASITTER_PURGE_DATA=1` or `0`: control whether uninstall removes local data and logs
+
+The installer does not edit shell startup files. It installs the CLI into `/usr/local/bin` and warns if that path is not currently on your shell `PATH`.
+
+## Manual Install Fallback
+
+If you want to build locally from source instead of using a release:
+
+Build the CLI:
+
+```bash
+go build -o bin/llamasitter ./cmd/llamasitter
+```
+
+Build the macOS app bundle locally:
+
+```bash
+bash ./scripts/build-macos-app.sh
+```
+
+Package release archives manually:
+
+```bash
+bash ./scripts/package-release.sh package --version v0.1.0 --target linux/amd64
+bash ./scripts/package-release.sh checksums
+```
 
 ## Performance Impact
 
@@ -176,6 +248,8 @@ Do not launch `Contents/MacOS/LlamaSitter` directly unless you are intentionally
 ## Project Docs
 
 - [Architecture](/Users/trevorashby/Desktop/LlamaSitter/docs/architecture.md)
+- [CLI Guide](/Users/trevorashby/Desktop/LlamaSitter/docs/cli.md)
+- [CLI Reference](/Users/trevorashby/Desktop/LlamaSitter/docs/reference/cli/llamasitter.md)
 - [Development Notes](/Users/trevorashby/Desktop/LlamaSitter/docs/development.md)
 - [Implementation Checklist](/Users/trevorashby/Desktop/LlamaSitter/ImplementationChecklist.md)
 - [Development Plan](/Users/trevorashby/Desktop/LlamaSitter/DevelopmentPlan.md)

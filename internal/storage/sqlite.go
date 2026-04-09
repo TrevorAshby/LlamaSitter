@@ -290,7 +290,21 @@ func (s *SQLiteStore) UsageSummary(ctx context.Context, filter model.RequestFilt
 	return summary, nil
 }
 
-func (s *SQLiteStore) UsageTimeseries(ctx context.Context, filter model.RequestFilter, rangeName string) ([]model.TimeBucket, error) {
+type bucketBreakdownAccumulator struct {
+	RequestCount int64
+	PromptTokens int64
+	OutputTokens int64
+	TotalTokens  int64
+}
+
+type bucketBreakdownGroups struct {
+	Model          map[string]*bucketBreakdownAccumulator
+	ClientType     map[string]*bucketBreakdownAccumulator
+	ClientInstance map[string]*bucketBreakdownAccumulator
+	AgentName      map[string]*bucketBreakdownAccumulator
+}
+
+func (s *SQLiteStore) UsageTimeseries(ctx context.Context, filter model.RequestFilter, rangeName string, includeBreakdowns bool) ([]model.TimeBucket, error) {
 	rows, err := s.analyticsRows(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -299,6 +313,7 @@ func (s *SQLiteStore) UsageTimeseries(ctx context.Context, filter model.RequestF
 	bucketWindows := analytics.BucketWindows(rangeName, filter.StartedAfter, filter.StartedBefore)
 	items := make([]model.TimeBucket, len(bucketWindows))
 	durationTotals := make([]float64, len(bucketWindows))
+	breakdownGroups := make([]bucketBreakdownGroups, len(bucketWindows))
 
 	for i, window := range bucketWindows {
 		items[i] = model.TimeBucket{
@@ -325,18 +340,32 @@ func (s *SQLiteStore) UsageTimeseries(ctx context.Context, filter model.RequestF
 		items[index].OutputTokens += row.OutputTokens
 		items[index].TotalTokens += row.TotalTokens
 		durationTotals[index] += float64(row.RequestDurationMs)
+
+		if includeBreakdowns {
+			group := &breakdownGroups[index]
+			addBucketBreakdown(group.model(), row.Model, row)
+			addBucketBreakdown(group.clientType(), row.ClientType, row)
+			addBucketBreakdown(group.clientInstance(), row.ClientInstance, row)
+			addBucketBreakdown(group.agentName(), row.AgentName, row)
+		}
 	}
 
 	for i := range items {
 		if items[i].RequestCount > 0 {
 			items[i].AvgRequestDurationMs = durationTotals[i] / float64(items[i].RequestCount)
 		}
+		if includeBreakdowns {
+			items[i].ModelBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].Model)
+			items[i].ClientTypeBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].ClientType)
+			items[i].ClientInstanceBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].ClientInstance)
+			items[i].AgentNameBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].AgentName)
+		}
 	}
 
 	return items, nil
 }
 
-func (s *SQLiteStore) UsageHeatmap(ctx context.Context, filter model.RequestFilter, tzOffsetMinutes int) ([]model.HeatmapCell, error) {
+func (s *SQLiteStore) UsageHeatmap(ctx context.Context, filter model.RequestFilter, tzOffsetMinutes int, includeBreakdowns bool) ([]model.HeatmapCell, error) {
 	rows, err := s.analyticsRows(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -344,6 +373,7 @@ func (s *SQLiteStore) UsageHeatmap(ctx context.Context, filter model.RequestFilt
 
 	cells := make([]model.HeatmapCell, 0, 7*24)
 	indexBySlot := make(map[int]int, 7*24)
+	breakdownGroups := make([]bucketBreakdownGroups, 0, 7*24)
 	for weekday := 0; weekday < 7; weekday++ {
 		for hour := 0; hour < 24; hour++ {
 			slot := weekday*24 + hour
@@ -352,6 +382,7 @@ func (s *SQLiteStore) UsageHeatmap(ctx context.Context, filter model.RequestFilt
 				Weekday: weekday,
 				Hour:    hour,
 			})
+			breakdownGroups = append(breakdownGroups, bucketBreakdownGroups{})
 		}
 	}
 
@@ -362,6 +393,22 @@ func (s *SQLiteStore) UsageHeatmap(ctx context.Context, filter model.RequestFilt
 		index := indexBySlot[slot]
 		cells[index].RequestCount++
 		cells[index].TotalTokens += row.TotalTokens
+		if includeBreakdowns {
+			group := &breakdownGroups[index]
+			addBucketBreakdown(group.model(), row.Model, row)
+			addBucketBreakdown(group.clientType(), row.ClientType, row)
+			addBucketBreakdown(group.clientInstance(), row.ClientInstance, row)
+			addBucketBreakdown(group.agentName(), row.AgentName, row)
+		}
+	}
+
+	if includeBreakdowns {
+		for i := range cells {
+			cells[i].ModelBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].Model)
+			cells[i].ClientTypeBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].ClientType)
+			cells[i].ClientInstanceBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].ClientInstance)
+			cells[i].AgentNameBreakdown = finalizeBucketBreakdowns(breakdownGroups[i].AgentName)
+		}
 	}
 
 	return cells, nil
@@ -503,6 +550,81 @@ func (s *SQLiteStore) breakdown(ctx context.Context, column string, filter model
 	return items, nil
 }
 
+func (g *bucketBreakdownGroups) model() map[string]*bucketBreakdownAccumulator {
+	if g.Model == nil {
+		g.Model = map[string]*bucketBreakdownAccumulator{}
+	}
+	return g.Model
+}
+
+func (g *bucketBreakdownGroups) clientType() map[string]*bucketBreakdownAccumulator {
+	if g.ClientType == nil {
+		g.ClientType = map[string]*bucketBreakdownAccumulator{}
+	}
+	return g.ClientType
+}
+
+func (g *bucketBreakdownGroups) clientInstance() map[string]*bucketBreakdownAccumulator {
+	if g.ClientInstance == nil {
+		g.ClientInstance = map[string]*bucketBreakdownAccumulator{}
+	}
+	return g.ClientInstance
+}
+
+func (g *bucketBreakdownGroups) agentName() map[string]*bucketBreakdownAccumulator {
+	if g.AgentName == nil {
+		g.AgentName = map[string]*bucketBreakdownAccumulator{}
+	}
+	return g.AgentName
+}
+
+func addBucketBreakdown(target map[string]*bucketBreakdownAccumulator, name string, row analyticsRow) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+
+	item := target[name]
+	if item == nil {
+		item = &bucketBreakdownAccumulator{}
+		target[name] = item
+	}
+
+	item.RequestCount++
+	item.PromptTokens += row.PromptTokens
+	item.OutputTokens += row.OutputTokens
+	item.TotalTokens += row.TotalTokens
+}
+
+func finalizeBucketBreakdowns(items map[string]*bucketBreakdownAccumulator) []model.BucketBreakdownEntry {
+	if len(items) == 0 {
+		return nil
+	}
+
+	rows := make([]model.BucketBreakdownEntry, 0, len(items))
+	for name, item := range items {
+		rows = append(rows, model.BucketBreakdownEntry{
+			Name:         name,
+			RequestCount: item.RequestCount,
+			PromptTokens: item.PromptTokens,
+			OutputTokens: item.OutputTokens,
+			TotalTokens:  item.TotalTokens,
+		})
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].TotalTokens != rows[j].TotalTokens {
+			return rows[i].TotalTokens > rows[j].TotalTokens
+		}
+		if rows[i].RequestCount != rows[j].RequestCount {
+			return rows[i].RequestCount > rows[j].RequestCount
+		}
+		return rows[i].Name < rows[j].Name
+	})
+
+	return rows
+}
+
 func (s *SQLiteStore) loadTags(ctx context.Context, requestID string) (map[string]string, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT tag_key, tag_value
@@ -541,6 +663,10 @@ type analyticsRow struct {
 	RequestDurationMs int64
 	Success           bool
 	Aborted           bool
+	Model             string
+	ClientType        string
+	ClientInstance    string
+	AgentName         string
 }
 
 func (s *SQLiteStore) analyticsRows(ctx context.Context, filter model.RequestFilter) ([]analyticsRow, error) {
@@ -554,7 +680,11 @@ func (s *SQLiteStore) analyticsRows(ctx context.Context, filter model.RequestFil
 			total_tokens,
 			request_duration_ms,
 			success,
-			aborted
+			aborted,
+			model,
+			client_type,
+			client_instance,
+			agent_name
 		FROM requests
 	`+where+`
 		ORDER BY started_at ASC
@@ -578,6 +708,10 @@ func (s *SQLiteStore) analyticsRows(ctx context.Context, filter model.RequestFil
 			&item.RequestDurationMs,
 			&success,
 			&aborted,
+			&item.Model,
+			&item.ClientType,
+			&item.ClientInstance,
+			&item.AgentName,
 		); err != nil {
 			return nil, fmt.Errorf("scan analytics row: %w", err)
 		}

@@ -53,6 +53,15 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("read config: %w", err)
 	}
 
+	cfg, err := Parse(raw)
+	if err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+func Parse(raw []byte) (Config, error) {
 	cfg := defaultConfig()
 	if err := yaml.Unmarshal(raw, &cfg); err != nil {
 		return Config{}, fmt.Errorf("decode config: %w", err)

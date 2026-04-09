@@ -177,7 +177,7 @@ func (s *Server) handleUsageTimeseries(w http.ResponseWriter, r *http.Request) {
 	}
 	filter.StartedAfter, filter.StartedBefore = normalizeWindowFromFilter(rangeName, filter.StartedAfter, filter.StartedBefore, time.Now().UTC())
 
-	items, err := s.store.UsageTimeseries(r.Context(), filter, rangeName)
+	items, err := s.store.UsageTimeseries(r.Context(), filter, rangeName, queryBool(r, "include_breakdowns"))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -207,7 +207,7 @@ func (s *Server) handleUsageHeatmap(w http.ResponseWriter, r *http.Request) {
 	}
 	filter.StartedAfter, filter.StartedBefore = normalizeWindowFromFilter(rangeName, filter.StartedAfter, filter.StartedBefore, time.Now().UTC())
 
-	items, err := s.store.UsageHeatmap(r.Context(), filter, queryInt(r, "tz_offset_minutes", 0))
+	items, err := s.store.UsageHeatmap(r.Context(), filter, queryInt(r, "tz_offset_minutes", 0), queryBool(r, "include_breakdowns"))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -410,6 +410,25 @@ func queryInt(r *http.Request, key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func queryBool(r *http.Request, key string) bool {
+	raw := strings.TrimSpace(r.URL.Query().Get(key))
+	if raw == "" {
+		return false
+	}
+
+	value, err := strconv.ParseBool(raw)
+	if err == nil {
+		return value
+	}
+
+	switch strings.ToLower(raw) {
+	case "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func queryTime(r *http.Request, key string) (time.Time, error) {

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${ROOT_DIR}/build/macos"
+BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos}"
 APP_NAME="LlamaSitter"
 APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
 APP_CONTENTS="${APP_BUNDLE}/Contents"
@@ -31,6 +31,7 @@ MIN_VERSION="13.0"
 
 export GOCACHE="${GOCACHE:-${DEFAULT_GOCACHE}}"
 export GOMODCACHE="${GOMODCACHE:-${DEFAULT_GOMODCACHE}}"
+GO_LDFLAGS="${GO_LDFLAGS:-}"
 
 mkdir -p "${BUILD_DIR}"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}"
@@ -43,7 +44,11 @@ render_icon() {
 }
 
 echo "Building Go backend..."
-go build -o "${BACKEND_BINARY}" ./cmd/llamasitter
+if [[ -n "${GO_LDFLAGS}" ]]; then
+  go build -ldflags "${GO_LDFLAGS}" -o "${BACKEND_BINARY}" ./cmd/llamasitter
+else
+  go build -o "${BACKEND_BINARY}" ./cmd/llamasitter
+fi
 
 echo "Generating placeholder dock icon..."
 "${CLANG}" \

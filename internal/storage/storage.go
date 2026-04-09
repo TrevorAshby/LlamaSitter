@@ -14,8 +14,8 @@ type Store interface {
 	ListRequests(context.Context, model.RequestFilter) ([]model.RequestEvent, error)
 	GetRequest(context.Context, string) (*model.RequestEvent, error)
 	UsageSummary(context.Context, model.RequestFilter) (*model.UsageSummary, error)
-	UsageTimeseries(context.Context, model.RequestFilter, string) ([]model.TimeBucket, error)
-	UsageHeatmap(context.Context, model.RequestFilter, int) ([]model.HeatmapCell, error)
+	UsageTimeseries(context.Context, model.RequestFilter, string, bool) ([]model.TimeBucket, error)
+	UsageHeatmap(context.Context, model.RequestFilter, int, bool) ([]model.HeatmapCell, error)
 	ListSessions(context.Context, model.RequestFilter) ([]model.SessionSummary, error)
 	GetSession(context.Context, string) (*model.SessionSummary, error)
 }

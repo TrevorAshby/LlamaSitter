@@ -109,6 +109,9 @@ func TestUsageEndpointsRespectWindowBounds(t *testing.T) {
 	var bucketRequests int64
 	for _, bucket := range timeseries.Items {
 		bucketRequests += bucket.RequestCount
+		if len(bucket.ModelBreakdown) != 0 {
+			t.Fatalf("expected aggregate-only timeseries response by default, got %+v", bucket)
+		}
 	}
 	if bucketRequests != summary.RequestCount {
 		t.Fatalf("bucket request total = %d, want %d", bucketRequests, summary.RequestCount)
@@ -118,6 +121,66 @@ func TestUsageEndpointsRespectWindowBounds(t *testing.T) {
 	performJSONRequest(t, handler, "/api/usage/heatmap"+query+"&range=day&tz_offset_minutes=0", &heatmap, http.StatusOK)
 	if heatmap.Count != 7*24 {
 		t.Fatalf("expected 168 heatmap cells, got %d", heatmap.Count)
+	}
+	for _, cell := range heatmap.Items {
+		if len(cell.ModelBreakdown) != 0 {
+			t.Fatalf("expected aggregate-only heatmap response by default, got %+v", cell)
+		}
+	}
+}
+
+func TestUsageEndpointsCanIncludeBreakdowns(t *testing.T) {
+	t.Parallel()
+
+	store, handler := newAPITestHandler(t)
+
+	now := time.Date(2026, time.April, 8, 18, 0, 0, 0, time.UTC)
+	eventA := apiEvent("req-a", now.Add(-4*time.Hour), 20, "session-a")
+	eventA.Model = "llama3"
+	eventA.ClientType = "codex"
+	eventA.ClientInstance = "inst-a"
+	eventA.AgentName = "agent-a"
+	insertAPIEvent(t, store, eventA)
+
+	eventB := apiEvent("req-b", now.Add(-2*time.Hour), 10, "session-b")
+	eventB.Model = "mistral"
+	eventB.ClientType = "openwebui"
+	eventB.ClientInstance = "inst-b"
+	eventB.AgentName = "agent-b"
+	insertAPIEvent(t, store, eventB)
+
+	query := "?started_after=2026-04-07T18:00:00Z&started_before=2026-04-08T18:00:00Z"
+
+	var timeseries model.ListResponse[model.TimeBucket]
+	performJSONRequest(t, handler, "/api/usage/timeseries"+query+"&range=day&include_breakdowns=true", &timeseries, http.StatusOK)
+	var populatedBuckets int
+	for _, bucket := range timeseries.Items {
+		if bucket.RequestCount == 0 {
+			continue
+		}
+		populatedBuckets++
+		if len(bucket.ModelBreakdown) == 0 || len(bucket.ClientTypeBreakdown) == 0 || len(bucket.ClientInstanceBreakdown) == 0 || len(bucket.AgentNameBreakdown) == 0 {
+			t.Fatalf("expected full timeseries breakdowns, got %+v", bucket)
+		}
+	}
+	if populatedBuckets != 2 {
+		t.Fatalf("expected 2 populated buckets, got %d", populatedBuckets)
+	}
+
+	var heatmap model.ListResponse[model.HeatmapCell]
+	performJSONRequest(t, handler, "/api/usage/heatmap"+query+"&range=day&tz_offset_minutes=0&include_breakdowns=true", &heatmap, http.StatusOK)
+	var populatedCells int
+	for _, cell := range heatmap.Items {
+		if cell.RequestCount == 0 {
+			continue
+		}
+		populatedCells++
+		if len(cell.ModelBreakdown) == 0 || len(cell.ClientTypeBreakdown) == 0 || len(cell.ClientInstanceBreakdown) == 0 || len(cell.AgentNameBreakdown) == 0 {
+			t.Fatalf("expected full heatmap breakdowns, got %+v", cell)
+		}
+	}
+	if populatedCells != 2 {
+		t.Fatalf("expected 2 populated cells, got %d", populatedCells)
 	}
 }
 

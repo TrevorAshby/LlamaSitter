@@ -32,7 +32,10 @@ func insertEvent(t *testing.T, ctx context.Context, store *SQLiteStore, event *m
 	}
 }
 
-func makeEvent(id string, startedAt time.Time, sessionID string, totalTokens int64, identity model.Identity) *model.RequestEvent {
+func makeEvent(id string, startedAt time.Time, sessionID string, totalTokens int64, modelName string, identity model.Identity) *model.RequestEvent {
+	if modelName == "" {
+		modelName = "llama3"
+	}
 	return &model.RequestEvent{
 		RequestID:               id,
 		ListenerName:            "default",
@@ -40,7 +43,7 @@ func makeEvent(id string, startedAt time.Time, sessionID string, totalTokens int
 		FinishedAt:              startedAt.Add(1500 * time.Millisecond),
 		Method:                  "POST",
 		Endpoint:                "/api/chat",
-		Model:                   "llama3",
+		Model:                   modelName,
 		HTTPStatus:              200,
 		Success:                 true,
 		PromptTokens:            totalTokens / 2,
@@ -66,22 +69,22 @@ func TestAnalyticsQueriesRespectTimeWindow(t *testing.T) {
 	defer store.Close()
 
 	now := time.Date(2026, time.April, 8, 18, 0, 0, 0, time.UTC)
-	insertEvent(t, ctx, store, makeEvent("req-old", now.Add(-8*24*time.Hour), "session-old", 9, model.Identity{
+	insertEvent(t, ctx, store, makeEvent("req-old", now.Add(-8*24*time.Hour), "session-old", 9, "llama3", model.Identity{
 		ClientType:     "opencode",
 		ClientInstance: "inst-old",
 		AgentName:      "agent-old",
 	}))
-	insertEvent(t, ctx, store, makeEvent("req-day-1", now.Add(-6*time.Hour), "session-a", 20, model.Identity{
+	insertEvent(t, ctx, store, makeEvent("req-day-1", now.Add(-6*time.Hour), "session-a", 20, "llama3", model.Identity{
 		ClientType:     "opencode",
 		ClientInstance: "inst-a",
 		AgentName:      "agent-a",
 	}))
-	insertEvent(t, ctx, store, makeEvent("req-day-2", now.Add(-2*time.Hour), "session-a", 10, model.Identity{
+	insertEvent(t, ctx, store, makeEvent("req-day-2", now.Add(-2*time.Hour), "session-a", 10, "mistral", model.Identity{
 		ClientType:     "opencode",
 		ClientInstance: "inst-a",
 		AgentName:      "agent-b",
 	}))
-	insertEvent(t, ctx, store, makeEvent("req-week", now.Add(-26*time.Hour), "session-b", 30, model.Identity{
+	insertEvent(t, ctx, store, makeEvent("req-week", now.Add(-26*time.Hour), "session-b", 30, "llama3", model.Identity{
 		ClientType:     "codex",
 		ClientInstance: "inst-b",
 		AgentName:      "agent-c",
@@ -139,7 +142,7 @@ func TestAnalyticsQueriesRespectTimeWindow(t *testing.T) {
 		t.Fatalf("expected 2 agent names, got %#v", sessions[0].AgentNames)
 	}
 
-	timeseries, err := store.UsageTimeseries(ctx, filter, "day")
+	timeseries, err := store.UsageTimeseries(ctx, filter, "day", true)
 	if err != nil {
 		t.Fatalf("usage timeseries: %v", err)
 	}
@@ -159,8 +162,20 @@ func TestAnalyticsQueriesRespectTimeWindow(t *testing.T) {
 	if bucketTokens != summary.TotalTokens {
 		t.Fatalf("bucket token total = %d, want %d", bucketTokens, summary.TotalTokens)
 	}
+	var bucketsWithBreakdowns int
+	for _, bucket := range timeseries {
+		if len(bucket.ModelBreakdown) == 0 && bucket.RequestCount > 0 {
+			t.Fatalf("expected model breakdowns for populated bucket %+v", bucket)
+		}
+		if len(bucket.ModelBreakdown) > 0 {
+			bucketsWithBreakdowns++
+		}
+	}
+	if bucketsWithBreakdowns != 2 {
+		t.Fatalf("expected 2 populated buckets with breakdowns, got %d", bucketsWithBreakdowns)
+	}
 
-	heatmap, err := store.UsageHeatmap(ctx, filter, 0)
+	heatmap, err := store.UsageHeatmap(ctx, filter, 0, true)
 	if err != nil {
 		t.Fatalf("usage heatmap: %v", err)
 	}
@@ -173,6 +188,22 @@ func TestAnalyticsQueriesRespectTimeWindow(t *testing.T) {
 	}
 	if heatmapRequests != summary.RequestCount {
 		t.Fatalf("heatmap request total = %d, want %d", heatmapRequests, summary.RequestCount)
+	}
+	var nonEmptyCells int
+	for _, cell := range heatmap {
+		if cell.RequestCount == 0 {
+			if len(cell.ModelBreakdown) != 0 {
+				t.Fatalf("expected empty heatmap cell to omit breakdowns, got %+v", cell)
+			}
+			continue
+		}
+		nonEmptyCells++
+		if len(cell.ModelBreakdown) == 0 || len(cell.ClientInstanceBreakdown) == 0 || len(cell.AgentNameBreakdown) == 0 {
+			t.Fatalf("expected populated heatmap cell to include breakdowns, got %+v", cell)
+		}
+	}
+	if nonEmptyCells != 2 {
+		t.Fatalf("expected 2 populated heatmap cells, got %d", nonEmptyCells)
 	}
 }
 
@@ -192,6 +223,7 @@ func TestUsageTimeseriesMonthBuildsStableWeeklyBuckets(t *testing.T) {
 			startedAt,
 			"session-month",
 			int64(10+i),
+			"llama3",
 			model.Identity{ClientType: "opencode", ClientInstance: "inst-month", AgentName: "agent-month"},
 		))
 	}
@@ -199,7 +231,7 @@ func TestUsageTimeseriesMonthBuildsStableWeeklyBuckets(t *testing.T) {
 	items, err := store.UsageTimeseries(ctx, model.RequestFilter{
 		StartedAfter:  start,
 		StartedBefore: end,
-	}, "month")
+	}, "month", false)
 	if err != nil {
 		t.Fatalf("usage timeseries month: %v", err)
 	}
@@ -213,6 +245,45 @@ func TestUsageTimeseriesMonthBuildsStableWeeklyBuckets(t *testing.T) {
 		}
 		if item.RequestCount != 1 {
 			t.Fatalf("bucket %d request count = %d, want 1", i, item.RequestCount)
+		}
+	}
+}
+
+func TestAnalyticsBreakdownsCanBeSkipped(t *testing.T) {
+	t.Parallel()
+
+	store, ctx := newAnalyticsTestStore(t)
+	defer store.Close()
+
+	now := time.Date(2026, time.April, 8, 18, 0, 0, 0, time.UTC)
+	insertEvent(t, ctx, store, makeEvent("req-1", now.Add(-2*time.Hour), "session-a", 25, "llama3", model.Identity{
+		ClientType:     "codex",
+		ClientInstance: "inst-a",
+		AgentName:      "agent-a",
+	}))
+
+	filter := model.RequestFilter{
+		StartedAfter:  now.Add(-24 * time.Hour),
+		StartedBefore: now,
+	}
+
+	timeseries, err := store.UsageTimeseries(ctx, filter, "day", false)
+	if err != nil {
+		t.Fatalf("usage timeseries without breakdowns: %v", err)
+	}
+	for _, bucket := range timeseries {
+		if len(bucket.ModelBreakdown) != 0 || len(bucket.ClientTypeBreakdown) != 0 || len(bucket.ClientInstanceBreakdown) != 0 || len(bucket.AgentNameBreakdown) != 0 {
+			t.Fatalf("expected no bucket breakdowns when disabled, got %+v", bucket)
+		}
+	}
+
+	heatmap, err := store.UsageHeatmap(ctx, filter, 0, false)
+	if err != nil {
+		t.Fatalf("usage heatmap without breakdowns: %v", err)
+	}
+	for _, cell := range heatmap {
+		if len(cell.ModelBreakdown) != 0 || len(cell.ClientTypeBreakdown) != 0 || len(cell.ClientInstanceBreakdown) != 0 || len(cell.AgentNameBreakdown) != 0 {
+			t.Fatalf("expected no heatmap breakdowns when disabled, got %+v", cell)
 		}
 	}
 }
