@@ -47,6 +47,8 @@ func newServeCommand(_ context.Context, logger *slog.Logger, opts *rootOptions) 
 	return &cobra.Command{
 		Use:   "serve",
 		Short: "Start the proxy, storage, API, and dashboard services",
+		Long: "Start the full LlamaSitter runtime using the selected config file. " +
+			"This opens the configured SQLite store, starts all proxy listeners, serves the local API, and enables the dashboard UI when it is configured.",
 		Args:  noArgs,
 		Example: "  llamasitter serve --config llamasitter.yaml\n" +
 			"  llamasitter serve --config /Users/me/Library/Application Support/LlamaSitter/llamasitter.yaml",
@@ -162,6 +164,8 @@ func newDoctorCommand(_ context.Context, logger *slog.Logger, opts *rootOptions)
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Validate config, storage, listener upstreams, and UI settings",
+		Long: "Check that the selected config file is valid, that storage can be opened, and that each configured listener can reach its upstream Ollama version endpoint. " +
+			"Use this before starting the service or in scripts that need a fast health check.",
 		Args:  noArgs,
 		Example: "  llamasitter doctor --config llamasitter.yaml\n" +
 			"  llamasitter doctor --config /Users/me/Library/Application Support/LlamaSitter/llamasitter.yaml --output json",
@@ -272,6 +276,8 @@ func newStatsCommand(_ context.Context, opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stats",
 		Short: "Print aggregate usage metrics from local storage",
+		Long: "Read aggregate usage metrics from the local SQLite store. " +
+			"The default table output shows high-level totals, while JSON and YAML output expose the full summary payload including model and contributor breakdowns.",
 		Args:  noArgs,
 		Example: "  llamasitter stats --config llamasitter.yaml\n" +
 			"  llamasitter stats --config llamasitter.yaml --output json",
@@ -340,6 +346,8 @@ func newTailCommand(_ context.Context, opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tail",
 		Short: "Show recent captured requests from local storage",
+		Long: "Show the most recent requests captured in local storage. " +
+			"The default table is optimized for quick terminal inspection, and JSON or YAML output can be used for scripting or deeper debugging.",
 		Args:  noArgs,
 		Example: "  llamasitter tail --config llamasitter.yaml -n 20\n" +
 			"  llamasitter tail --config llamasitter.yaml --output json",
@@ -410,6 +418,8 @@ func newExportCommand(_ context.Context, opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export captured requests as json or csv",
+		Long: "Export captured requests from the local SQLite store in JSON or CSV form. " +
+			"Use JSON for full request records and CSV when you want a compact table for spreadsheets or other analysis tools.",
 		Args:  noArgs,
 		Example: "  llamasitter export --config llamasitter.yaml --format json\n" +
 			"  llamasitter export --config llamasitter.yaml --format csv --output requests.csv",

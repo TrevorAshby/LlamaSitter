@@ -17,6 +17,8 @@ func newConfigCommand(_ context.Context, logger *slog.Logger, opts *rootOptions)
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Inspect, validate, and safely mutate LlamaSitter config files",
+		Long: "Inspect the current config, create a new one, validate it, and update specific sections without hand-editing YAML. " +
+			"Most mutating config commands support --dry-run so you can preview the exact file contents before writing them.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -43,6 +45,7 @@ func newConfigPathCommand(opts *rootOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:   "path",
 		Short: "Print the resolved path of the target config file",
+		Long: "Print the exact config file path that the current command invocation will use after applying the --config flag and default path rules.",
 		Args:  noArgs,
 		Example: "  llamasitter config path\n" +
 			"  llamasitter config path --config /tmp/llamasitter.yaml",
@@ -66,6 +69,8 @@ func newConfigInitCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create a default config file at the selected path",
+		Long: "Create a new default config file at the selected path. " +
+			"Use --dry-run to preview the generated YAML or --force to overwrite an existing file deliberately.",
 		Args:  noArgs,
 		Example: "  llamasitter config init\n" +
 			"  llamasitter config init --config /tmp/llamasitter.yaml --dry-run",
@@ -111,6 +116,8 @@ func newConfigViewCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view",
 		Short: "Render the current config as yaml, json, or a summary table",
+		Long: "Load the selected config file and render it as YAML, JSON, or a compact summary table. " +
+			"This is the fastest way to confirm what LlamaSitter will actually run with.",
 		Args:  noArgs,
 		Example: "  llamasitter config view\n" +
 			"  llamasitter config view --output json",
@@ -162,6 +169,8 @@ func newConfigValidateCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate the selected config file without contacting upstreams",
+		Long: "Parse and validate the selected config file without opening storage or contacting upstream Ollama instances. " +
+			"Use this when you only want a structural and semantic config check.",
 		Args:  noArgs,
 		Example: "  llamasitter config validate\n" +
 			"  llamasitter config validate --output json",
@@ -203,6 +212,8 @@ func newConfigListenerCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "listener",
 		Short: "List, inspect, add, update, tag, and remove listeners",
+		Long: "Manage the configured proxy listeners. " +
+			"Each listener defines a local bind address, an upstream Ollama base URL, and optional default attribution tags that are applied when requests do not provide explicit X-LlamaSitter-* headers.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -229,6 +240,7 @@ func newConfigListenerListCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List configured listeners",
+		Long: "List all listeners defined in the selected config file, including their local bind addresses, upstream URLs, and default tags.",
 		Args:  noArgs,
 		Example: "  llamasitter config listener list\n" +
 			"  llamasitter config listener list --output json",
@@ -274,6 +286,7 @@ func newConfigListenerShowCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show NAME",
 		Short: "Show one configured listener",
+		Long: "Show the full configuration for a single listener identified by name.",
 		Args:  exactArgs(1),
 		Example: "  llamasitter config listener show default\n" +
 			"  llamasitter config listener show default --output yaml",
@@ -322,6 +335,8 @@ func newConfigListenerAddCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add",
 		Short: "Add a new listener to the selected config file",
+		Long: "Add a new listener to the selected config file. " +
+			"A listener needs a name, a local listen address, and an upstream Ollama base URL, and it can optionally define default attribution tags.",
 		Args:  noArgs,
 		Example: "  llamasitter config listener add --name openwebui --listen-addr 127.0.0.1:11436 --upstream-url http://127.0.0.1:11434\n" +
 			"  llamasitter config listener add --name openwebui --listen-addr 0.0.0.0:11436 --upstream-url http://127.0.0.1:11434 --tag client_type=openwebui --tag client_instance=docker",
@@ -372,6 +387,7 @@ func newConfigListenerUpdateCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update NAME",
 		Short: "Update listener name, bind address, or upstream URL",
+		Long: "Update an existing listener's name, local bind address, or upstream Ollama URL without rewriting the rest of the config file.",
 		Args:  exactArgs(1),
 		Example: "  llamasitter config listener update default --listen-addr 127.0.0.1:11439\n" +
 			"  llamasitter config listener update openwebui --rename ui-docker --upstream-url http://127.0.0.1:11434",
@@ -418,6 +434,8 @@ func newConfigListenerSetTagCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-tag NAME KEY=VALUE",
 		Short: "Set or replace one default tag on a listener",
+		Long: "Set or replace one default attribution tag on a listener. " +
+			"These tags are used when incoming requests do not send explicit X-LlamaSitter-* headers for the same fields.",
 		Args:  exactArgs(2),
 		Example: "  llamasitter config listener set-tag openwebui client_type=openwebui\n" +
 			"  llamasitter config listener set-tag openwebui workspace=/Users/me/project",
@@ -448,6 +466,7 @@ func newConfigListenerUnsetTagCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "unset-tag NAME KEY",
 		Short:   "Remove one default tag from a listener",
+		Long:    "Remove one default attribution tag from a listener.",
 		Args:    exactArgs(2),
 		Example: "  llamasitter config listener unset-tag openwebui client_type",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -475,6 +494,8 @@ func newConfigListenerRemoveCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove NAME",
 		Short: "Remove one listener from the selected config file",
+		Long: "Remove one listener from the selected config file. " +
+			"Because this is destructive, the command requires --yes unless you are only previewing the result with --dry-run.",
 		Args:  exactArgs(1),
 		Example: "  llamasitter config listener remove openwebui --yes\n" +
 			"  llamasitter config listener remove openwebui --yes --dry-run",
@@ -504,6 +525,7 @@ func newConfigUICommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ui",
 		Short: "Inspect and update dashboard UI settings",
+		Long: "Inspect or change the embedded dashboard UI settings, including whether the UI is enabled and which local address it listens on.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -527,6 +549,7 @@ func newConfigUIShowCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
 		Short: "Show UI enablement and listen address",
+		Long: "Show whether the embedded dashboard UI is enabled and which local address it is configured to use.",
 		Args:  noArgs,
 		Example: "  llamasitter config ui show\n" +
 			"  llamasitter config ui show --output json",
@@ -572,6 +595,7 @@ func newConfigUIEnableCommand(opts *rootOptions, enabled bool) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   use,
 		Short: short,
+		Long: "Update whether the embedded dashboard UI listener is enabled in the selected config file.",
 		Args:  noArgs,
 		Example: "  llamasitter config ui " + use + "\n" +
 			"  llamasitter config ui " + use + " --dry-run",
@@ -597,6 +621,7 @@ func newConfigUISetListenAddrCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-listen-addr HOST:PORT",
 		Short:   "Set the UI listener bind address",
+		Long:    "Set the local bind address for the embedded dashboard UI listener.",
 		Args:    exactArgs(1),
 		Example: "  llamasitter config ui set-listen-addr 127.0.0.1:11439",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -619,6 +644,7 @@ func newConfigStorageCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "storage",
 		Short: "Inspect and update storage settings",
+		Long: "Inspect or update storage settings such as the SQLite database path used for request persistence.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -640,6 +666,7 @@ func newConfigStorageShowCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
 		Short: "Show storage settings",
+		Long: "Show the currently configured storage settings, including the resolved SQLite database path.",
 		Args:  noArgs,
 		Example: "  llamasitter config storage show\n" +
 			"  llamasitter config storage show --output yaml",
@@ -676,6 +703,7 @@ func newConfigStorageSetSQLitePathCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "set-sqlite-path PATH",
 		Short:   "Set the SQLite database path",
+		Long:    "Update the SQLite database path in the selected config file.",
 		Args:    exactArgs(1),
 		Example: "  llamasitter config storage set-sqlite-path ~/.llamasitter/custom.db",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -698,6 +726,7 @@ func newConfigPrivacyCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "privacy",
 		Short: "Inspect and update privacy and redaction settings",
+		Long: "Inspect or update privacy-related storage behavior such as whether bodies are persisted and which headers or JSON fields are redacted.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -723,6 +752,7 @@ func newConfigPrivacyShowCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
 		Short: "Show privacy and redaction settings",
+		Long: "Show whether prompt and response bodies are persisted and which headers or JSON fields are currently configured for redaction.",
 		Args:  noArgs,
 		Example: "  llamasitter config privacy show\n" +
 			"  llamasitter config privacy show --output json",
@@ -761,6 +791,8 @@ func newConfigPrivacySetPersistBodiesCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-persist-bodies true|false",
 		Short: "Enable or disable prompt/response body persistence",
+		Long: "Enable or disable persistence of prompt and response bodies in the selected config file. " +
+			"Turning this off keeps LlamaSitter focused on metadata, counters, and attribution rather than body content.",
 		Args:  exactArgs(1),
 		Example: "  llamasitter config privacy set-persist-bodies false\n" +
 			"  llamasitter config privacy set-persist-bodies true --dry-run",

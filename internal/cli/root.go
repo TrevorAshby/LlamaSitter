@@ -22,7 +22,8 @@ func newRootCommand(ctx context.Context, logger *slog.Logger, stdout, stderr io.
 		Use:   "llamasitter",
 		Short: "Observe and manage local Ollama traffic through LlamaSitter",
 		Long: "LlamaSitter is a local-first observability proxy for Ollama. " +
-			"It captures usage, timing, model activity, and attribution while remaining transparent to callers.",
+			"It captures usage, timing, model activity, and attribution while remaining transparent to callers. " +
+			"Use the runtime commands to start the proxy and inspect stored request data, and use the config commands to create or safely edit the YAML config file without hand-editing it.",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		CompletionOptions: cobra.CompletionOptions{

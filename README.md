@@ -1,5 +1,9 @@
 # LlamaSitter
 
+<p align="center">
+  <img src="docs/images/llamasitter-mascot.png" alt="LlamaSitter mascot artwork showing a llama surrounded by cheerful lobsters on a beach" width="420">
+</p>
+
 LlamaSitter is a lightweight, local-first observability layer for Ollama. It sits between Ollama-powered clients and the Ollama server, proxies requests transparently, and records token usage, timing metrics, request patterns, model activity, and per-agent attribution.
 
 It is designed for developers who use Ollama through tools like OpenClaw, OpenCode, custom local agents, and direct app integrations, and want trustworthy visibility into what Ollama is actually processing.
@@ -66,7 +70,7 @@ Headers override defaults. The current precedence is:
 
 ## Example Configuration
 
-See [config.example.yaml](/Users/trevorashby/Desktop/LlamaSitter/config.example.yaml) for a full sample. A minimal setup looks like this:
+See [config.example.yaml](config.example.yaml) for a full sample. A minimal setup looks like this:
 
 ```yaml
 listeners:
@@ -87,7 +91,17 @@ ui:
 
 ## CLI
 
-LlamaSitter now ships with an explicit nested CLI for both runtime operations and safe config management.
+LlamaSitter ships with a nested CLI for both runtime operations and safe config management.
+
+If you are starting fresh, the shortest path is:
+
+```bash
+llamasitter config init
+llamasitter doctor --config llamasitter.yaml
+llamasitter serve --config llamasitter.yaml
+```
+
+Then point your Ollama client at the configured listener, which defaults to `127.0.0.1:11435` instead of Ollama's `127.0.0.1:11434`.
 
 Common workflows:
 
@@ -109,9 +123,11 @@ Key CLI conventions:
 - `--config PATH` selects the YAML file to inspect or mutate
 - Config mutation commands support `--dry-run`
 - Destructive removal commands require `--yes`
+- Most inspect commands support `--output table|json|yaml`
+- `llamasitter stats --output json` exposes a fuller summary than the default table output
 - `llamasitter desktop config path` prints the macOS app-managed config location explicitly
 
-See [CLI Guide](/Users/trevorashby/Desktop/LlamaSitter/docs/cli.md) for task-oriented workflows and [CLI Reference](/Users/trevorashby/Desktop/LlamaSitter/docs/reference/cli/llamasitter.md) for the generated command docs.
+See [CLI Guide](docs/cli.md) for an end-to-end onboarding and workflow guide, and [CLI Reference](docs/reference/cli/llamasitter.md) for the generated command docs.
 
 ## Install and Uninstall
 
@@ -144,7 +160,7 @@ Supported installer environment variables:
 
 The installer does not edit shell startup files. It installs the CLI into `/usr/local/bin` and warns if that path is not currently on your shell `PATH`.
 
-On macOS, `llamasitter serve` now best-effort launches the installed menu bar companion automatically when [LlamaSitter.app](/Applications/LlamaSitter.app) is present, so the menu icon and dashboard can attach to the same running service even if you started it from Terminal.
+On macOS, `llamasitter serve` now best-effort launches the installed menu bar companion automatically when `LlamaSitter.app` is present, so the menu icon and dashboard can attach to the same running service even if you started it from Terminal.
 
 ## Manual Install Fallback
 
@@ -225,7 +241,7 @@ python3 benchmarks/plot_latency_benchmarks.py
 
 ## macOS App
 
-A native macOS desktop wrapper now lives under [desktop/macos](/Users/trevorashby/Desktop/LlamaSitter/desktop/macos). The visible [LlamaSitter.app](/Users/trevorashby/Desktop/LlamaSitter/build/macos/LlamaSitter.app) acts as the dashboard window, while an embedded background menu bar agent owns the bundled `llamasitter serve` process and keeps the status icon alive even after the dashboard window is closed.
+A native macOS desktop wrapper now lives under [desktop/macos](desktop/macos). The visible `LlamaSitter.app` acts as the dashboard window, while an embedded background menu bar agent owns the bundled `llamasitter serve` process and keeps the status icon alive even after the dashboard window is closed.
 
 To build a local `.app` bundle:
 
@@ -242,7 +258,7 @@ build/macos/LlamaSitter.app
 Launch the bundle itself, not the inner Mach-O:
 
 ```bash
-open /Users/trevorashby/Desktop/LlamaSitter/build/macos/LlamaSitter.app
+open build/macos/LlamaSitter.app
 ```
 
 Do not launch `Contents/MacOS/LlamaSitter` directly unless you are intentionally debugging the bundle internals. The embedded background agent is launched automatically from the app bundle when needed.
@@ -257,12 +273,12 @@ the installed macOS companion will also try to come up automatically and attach 
 
 ## Project Docs
 
-- [Architecture](/Users/trevorashby/Desktop/LlamaSitter/docs/architecture.md)
-- [CLI Guide](/Users/trevorashby/Desktop/LlamaSitter/docs/cli.md)
-- [CLI Reference](/Users/trevorashby/Desktop/LlamaSitter/docs/reference/cli/llamasitter.md)
-- [Development Notes](/Users/trevorashby/Desktop/LlamaSitter/docs/development.md)
-- [Implementation Checklist](/Users/trevorashby/Desktop/LlamaSitter/ImplementationChecklist.md)
-- [Development Plan](/Users/trevorashby/Desktop/LlamaSitter/DevelopmentPlan.md)
+- [Architecture](docs/architecture.md)
+- [CLI Guide](docs/cli.md)
+- [CLI Reference](docs/reference/cli/llamasitter.md)
+- [Development Notes](docs/development.md)
+- [Implementation Checklist](ImplementationChecklist.md)
+- [Development Plan](DevelopmentPlan.md)
 
 ## Status
 

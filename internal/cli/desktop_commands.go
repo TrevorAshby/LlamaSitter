@@ -36,6 +36,7 @@ func newDesktopCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "desktop",
 		Short: "Inspect macOS desktop app-managed paths",
+		Long: "Print the config, database, and log paths managed by the macOS desktop app so the CLI can target the same files intentionally.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -46,6 +47,7 @@ func newDesktopCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
 		Short: "Inspect the app-managed desktop config path",
+		Long: "Inspect the config path used by the macOS desktop app.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -59,6 +61,7 @@ func newDesktopCommand() *cobra.Command {
 	dbCmd := &cobra.Command{
 		Use:   "db",
 		Short: "Inspect the app-managed desktop database path",
+		Long: "Inspect the SQLite database path used by the macOS desktop app.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -72,6 +75,7 @@ func newDesktopCommand() *cobra.Command {
 	logsCmd := &cobra.Command{
 		Use:   "logs",
 		Short: "Inspect the app-managed desktop logs path",
+		Long: "Inspect the logs directory used by the macOS desktop app.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -90,6 +94,7 @@ func newDesktopPathLeafCommand(use, short string, selectPath func(desktopPathSet
 	return &cobra.Command{
 		Use:   use,
 		Short: short,
+		Long:  short,
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths, err := desktopPaths()

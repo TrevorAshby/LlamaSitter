@@ -6,6 +6,8 @@ func newCompletionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate shell completion scripts",
+		Long: "Generate shell completion scripts for the requested shell. " +
+			"Install the output into your shell's completion directory to make command discovery and flag entry faster.",
 		Args:  exactArgs(1),
 		Example: "  llamasitter completion zsh > ~/.zsh/completions/_llamasitter\n" +
 			"  llamasitter completion bash > /usr/local/etc/bash_completion.d/llamasitter",
