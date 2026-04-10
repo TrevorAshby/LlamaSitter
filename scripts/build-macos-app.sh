@@ -35,7 +35,7 @@ GO_LDFLAGS="${GO_LDFLAGS:-}"
 
 mkdir -p "${BUILD_DIR}"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}"
-rm -rf "${APP_BUNDLE}" "${ICONSET_DIR}" "${ICON_FILE}" "${ICON_SOURCE_PNG}" "${STATUS_ICON_FILE}" "${DESKTOP_BINARY}" "${BACKEND_BINARY}" "${ICON_GENERATOR}" "${STATUS_ICON_GENERATOR}"
+rm -rf "${APP_BUNDLE}" "${ICONSET_DIR}" "${DESKTOP_BINARY}" "${BACKEND_BINARY}" "${ICON_GENERATOR}" "${STATUS_ICON_GENERATOR}"
 
 render_icon() {
   local size="$1"
@@ -50,42 +50,67 @@ else
   go build -o "${BACKEND_BINARY}" ./cmd/llamasitter
 fi
 
-echo "Generating placeholder dock icon..."
-"${CLANG}" \
-  -fobjc-arc \
-  -fblocks \
-  -isysroot "${SDKROOT}" \
-  -mmacosx-version-min="${MIN_VERSION}" \
-  -o "${ICON_GENERATOR}" \
-  "${ROOT_DIR}/desktop/macos/Tools/generate_placeholder_icon.m" \
-  -framework Cocoa
-"${ICON_GENERATOR}" "${ICON_SOURCE_PNG}"
-mkdir -p "${ICONSET_DIR}"
-render_icon 16 "icon_16x16.png"
-render_icon 32 "icon_16x16@2x.png"
-render_icon 32 "icon_32x32.png"
-render_icon 64 "icon_32x32@2x.png"
-render_icon 128 "icon_128x128.png"
-render_icon 256 "icon_128x128@2x.png"
-render_icon 256 "icon_256x256.png"
-render_icon 512 "icon_256x256@2x.png"
-render_icon 512 "icon_512x512.png"
-cp "${ICON_SOURCE_PNG}" "${ICONSET_DIR}/icon_512x512@2x.png"
-if ! iconutil --convert icns "${ICONSET_DIR}" --output "${ICON_FILE}"; then
-  echo "Falling back to the system placeholder app icon..."
-  cp "${SYSTEM_PLACEHOLDER_ICON}" "${ICON_FILE}"
+if [[ -f "${ICON_FILE}" ]]; then
+  echo "Using existing app icon: ${ICON_FILE}"
+elif [[ -f "${ICON_SOURCE_PNG}" ]]; then
+  echo "Building app icon from existing PNG: ${ICON_SOURCE_PNG}"
+  mkdir -p "${ICONSET_DIR}"
+  render_icon 16 "icon_16x16.png"
+  render_icon 32 "icon_16x16@2x.png"
+  render_icon 32 "icon_32x32.png"
+  render_icon 64 "icon_32x32@2x.png"
+  render_icon 128 "icon_128x128.png"
+  render_icon 256 "icon_128x128@2x.png"
+  render_icon 256 "icon_256x256.png"
+  render_icon 512 "icon_256x256@2x.png"
+  render_icon 512 "icon_512x512.png"
+  cp "${ICON_SOURCE_PNG}" "${ICONSET_DIR}/icon_512x512@2x.png"
+  if ! iconutil --convert icns "${ICONSET_DIR}" --output "${ICON_FILE}"; then
+    echo "Falling back to the system placeholder app icon..."
+    cp "${SYSTEM_PLACEHOLDER_ICON}" "${ICON_FILE}"
+  fi
+else
+  echo "Generating placeholder dock icon..."
+  "${CLANG}" \
+    -fobjc-arc \
+    -fblocks \
+    -isysroot "${SDKROOT}" \
+    -mmacosx-version-min="${MIN_VERSION}" \
+    -o "${ICON_GENERATOR}" \
+    "${ROOT_DIR}/desktop/macos/Tools/generate_placeholder_icon.m" \
+    -framework Cocoa
+  "${ICON_GENERATOR}" "${ICON_SOURCE_PNG}"
+  mkdir -p "${ICONSET_DIR}"
+  render_icon 16 "icon_16x16.png"
+  render_icon 32 "icon_16x16@2x.png"
+  render_icon 32 "icon_32x32.png"
+  render_icon 64 "icon_32x32@2x.png"
+  render_icon 128 "icon_128x128.png"
+  render_icon 256 "icon_128x128@2x.png"
+  render_icon 256 "icon_256x256.png"
+  render_icon 512 "icon_256x256@2x.png"
+  render_icon 512 "icon_512x512.png"
+  cp "${ICON_SOURCE_PNG}" "${ICONSET_DIR}/icon_512x512@2x.png"
+  if ! iconutil --convert icns "${ICONSET_DIR}" --output "${ICON_FILE}"; then
+    echo "Falling back to the system placeholder app icon..."
+    cp "${SYSTEM_PLACEHOLDER_ICON}" "${ICON_FILE}"
+  fi
 fi
 
-echo "Generating menu bar icon..."
-"${CLANG}" \
-  -fobjc-arc \
-  -fblocks \
-  -isysroot "${SDKROOT}" \
-  -mmacosx-version-min="${MIN_VERSION}" \
-  -o "${STATUS_ICON_GENERATOR}" \
-  "${ROOT_DIR}/desktop/macos/Tools/generate_status_item_icon.m" \
-  -framework Cocoa
-"${STATUS_ICON_GENERATOR}" "${STATUS_ICON_FILE}"
+if [[ -f "${STATUS_ICON_FILE}" ]]; then
+  echo "Using existing menu bar icon: ${STATUS_ICON_FILE}"
+else
+  echo "Generating menu bar icon..."
+  "${CLANG}" \
+    -fobjc-arc \
+    -fblocks \
+    -isysroot "${SDKROOT}" \
+    -mmacosx-version-min="${MIN_VERSION}" \
+    -o "${STATUS_ICON_GENERATOR}" \
+    "${ROOT_DIR}/desktop/macos/Tools/generate_status_item_icon.m" \
+    -framework Cocoa
+  "${STATUS_ICON_GENERATOR}" "${STATUS_ICON_FILE}"
+fi
 
 echo "Compiling macOS desktop shell..."
 "${CLANG}" \
