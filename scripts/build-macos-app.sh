@@ -14,13 +14,17 @@ MENU_AGENT_BUNDLE="${APP_LOGIN_ITEMS}/LlamaSitterMenu.app"
 MENU_AGENT_CONTENTS="${MENU_AGENT_BUNDLE}/Contents"
 MENU_AGENT_MACOS="${MENU_AGENT_CONTENTS}/MacOS"
 MENU_AGENT_RESOURCES="${MENU_AGENT_CONTENTS}/Resources"
+RESOURCE_DIR="${ROOT_DIR}/desktop/macos/Resources"
 DESKTOP_BINARY="${BUILD_DIR}/${APP_NAME}"
 BACKEND_BINARY="${BUILD_DIR}/llamasitter-backend"
 ICONSET_DIR="${BUILD_DIR}/AppIcon.iconset"
 ICON_FILE="${BUILD_DIR}/AppIcon.icns"
 ICON_SOURCE_PNG="${BUILD_DIR}/AppIcon-1024.png"
+RESOURCE_ICON_FILE="${RESOURCE_DIR}/AppIcon.icns"
+RESOURCE_ICON_SOURCE_PNG="${RESOURCE_DIR}/AppIcon-1024.png"
 ICON_GENERATOR="${BUILD_DIR}/generate-placeholder-icon"
 STATUS_ICON_FILE="${BUILD_DIR}/MenuBarIcon.png"
+RESOURCE_STATUS_ICON_FILE="${RESOURCE_DIR}/MenuBarIcon.png"
 STATUS_ICON_GENERATOR="${BUILD_DIR}/generate-status-item-icon"
 SYSTEM_PLACEHOLDER_ICON="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericApplicationIcon.icns"
 DEFAULT_GOCACHE="${ROOT_DIR}/.gocache"
@@ -69,6 +73,27 @@ elif [[ -f "${ICON_SOURCE_PNG}" ]]; then
     echo "Falling back to the system placeholder app icon..."
     cp "${SYSTEM_PLACEHOLDER_ICON}" "${ICON_FILE}"
   fi
+elif [[ -f "${RESOURCE_ICON_FILE}" ]]; then
+  echo "Using bundled app icon: ${RESOURCE_ICON_FILE}"
+  cp "${RESOURCE_ICON_FILE}" "${ICON_FILE}"
+elif [[ -f "${RESOURCE_ICON_SOURCE_PNG}" ]]; then
+  echo "Building app icon from bundled PNG: ${RESOURCE_ICON_SOURCE_PNG}"
+  cp "${RESOURCE_ICON_SOURCE_PNG}" "${ICON_SOURCE_PNG}"
+  mkdir -p "${ICONSET_DIR}"
+  render_icon 16 "icon_16x16.png"
+  render_icon 32 "icon_16x16@2x.png"
+  render_icon 32 "icon_32x32.png"
+  render_icon 64 "icon_32x32@2x.png"
+  render_icon 128 "icon_128x128.png"
+  render_icon 256 "icon_128x128@2x.png"
+  render_icon 256 "icon_256x256.png"
+  render_icon 512 "icon_256x256@2x.png"
+  render_icon 512 "icon_512x512.png"
+  cp "${ICON_SOURCE_PNG}" "${ICONSET_DIR}/icon_512x512@2x.png"
+  if ! iconutil --convert icns "${ICONSET_DIR}" --output "${ICON_FILE}"; then
+    echo "Falling back to the system placeholder app icon..."
+    cp "${SYSTEM_PLACEHOLDER_ICON}" "${ICON_FILE}"
+  fi
 else
   echo "Generating placeholder dock icon..."
   "${CLANG}" \
@@ -99,6 +124,9 @@ fi
 
 if [[ -f "${STATUS_ICON_FILE}" ]]; then
   echo "Using existing menu bar icon: ${STATUS_ICON_FILE}"
+elif [[ -f "${RESOURCE_STATUS_ICON_FILE}" ]]; then
+  echo "Using bundled menu bar icon: ${RESOURCE_STATUS_ICON_FILE}"
+  cp "${RESOURCE_STATUS_ICON_FILE}" "${STATUS_ICON_FILE}"
 else
   echo "Generating menu bar icon..."
   "${CLANG}" \
