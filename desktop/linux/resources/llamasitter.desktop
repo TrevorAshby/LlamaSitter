@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=LlamaSitter
+Comment=Observe local Ollama traffic with LlamaSitter
+Exec=/usr/bin/llamasitter-desktop --mode=dashboard
+Icon=llamasitter
+Terminal=false
+Categories=Development;Utility;
+StartupNotify=true

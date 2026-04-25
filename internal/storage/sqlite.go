@@ -277,6 +277,9 @@ func (s *SQLiteStore) UsageSummary(ctx context.Context, filter model.RequestFilt
 	if summary.ByModel, err = s.breakdown(ctx, "model", filter); err != nil {
 		return nil, err
 	}
+	if summary.ByListenerName, err = s.breakdown(ctx, "listener_name", filter); err != nil {
+		return nil, err
+	}
 	if summary.ByClientType, err = s.breakdown(ctx, "client_type", filter); err != nil {
 		return nil, err
 	}

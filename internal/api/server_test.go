@@ -88,6 +88,9 @@ func TestUsageEndpointsRespectWindowBounds(t *testing.T) {
 	if summary.RequestCount != 2 || summary.TotalTokens != 30 {
 		t.Fatalf("unexpected summary: %+v", summary)
 	}
+	if len(summary.ByListenerName) != 1 || summary.ByListenerName[0].Key != "default" {
+		t.Fatalf("expected listener breakdown for default, got %+v", summary.ByListenerName)
+	}
 
 	var requests model.ListResponse[model.RequestEvent]
 	performJSONRequest(t, handler, "/api/requests"+query+"&limit=10", &requests, http.StatusOK)
@@ -182,6 +185,77 @@ func TestUsageEndpointsCanIncludeBreakdowns(t *testing.T) {
 	if populatedCells != 2 {
 		t.Fatalf("expected 2 populated cells, got %d", populatedCells)
 	}
+}
+
+func TestDesktopOverviewEmptyState(t *testing.T) {
+	t.Parallel()
+
+	_, handler := newAPITestHandler(t)
+
+	var overview model.DesktopOverview
+	performJSONRequest(t, handler, "/api/desktop/overview", &overview, http.StatusOK)
+	if overview.RequestCount != 0 || overview.TotalTokens != 0 {
+		t.Fatalf("unexpected empty overview: %+v", overview)
+	}
+	if overview.TopModel != "No data yet" || overview.TopClientInstance != "No data yet" {
+		t.Fatalf("unexpected empty top values: %+v", overview)
+	}
+	if overview.ActivityTitle != "No activity yet" {
+		t.Fatalf("unexpected activity title: %+v", overview)
+	}
+}
+
+func TestDesktopOverviewPrefersRecentSession(t *testing.T) {
+	t.Parallel()
+
+	store, handler := newAPITestHandler(t)
+	now := time.Date(2026, time.April, 9, 12, 0, 0, 0, time.UTC)
+	event := apiEvent("req-session", now, 42, "session-z")
+	event.AgentName = "agent-z"
+	insertAPIEvent(t, store, event)
+
+	var overview model.DesktopOverview
+	performJSONRequest(t, handler, "/api/desktop/overview", &overview, http.StatusOK)
+	if overview.ActivityTitle != "Session session-z" {
+		t.Fatalf("unexpected activity title: %+v", overview)
+	}
+	if overview.TopModel != "llama3" || overview.TopClientInstance != "inst-1" {
+		t.Fatalf("unexpected top fields: %+v", overview)
+	}
+	if overview.ActivityDetail != "1 requests • 42 tokens • agent-z" {
+		t.Fatalf("unexpected activity detail: %+v", overview)
+	}
+}
+
+func TestDesktopOverviewFallsBackToRecentRequest(t *testing.T) {
+	t.Parallel()
+
+	store, handler := newAPITestHandler(t)
+	now := time.Date(2026, time.April, 9, 12, 0, 0, 0, time.UTC)
+	event := apiEvent("req-only", now, 18, "")
+	event.Model = "mistral"
+	event.HTTPStatus = 202
+	insertAPIEvent(t, store, event)
+
+	var overview model.DesktopOverview
+	performJSONRequest(t, handler, "/api/desktop/overview", &overview, http.StatusOK)
+	if overview.ActivityTitle != "mistral" {
+		t.Fatalf("unexpected activity title: %+v", overview)
+	}
+	if overview.ActivityDetail != "HTTP 202 • 18 tokens" {
+		t.Fatalf("unexpected activity detail: %+v", overview)
+	}
+}
+
+func TestDesktopOverviewReturnsServerErrorWhenStoreUnavailable(t *testing.T) {
+	t.Parallel()
+
+	store, handler := newAPITestHandler(t)
+	if err := store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	performJSONRequest(t, handler, "/api/desktop/overview", nil, http.StatusInternalServerError)
 }
 
 func TestRequestsRejectInvalidTimeBounds(t *testing.T) {

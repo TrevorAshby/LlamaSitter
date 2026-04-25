@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/trevorashby/llamasitter/internal/app"
+	"github.com/trevorashby/llamasitter/internal/desktop"
 	"github.com/trevorashby/llamasitter/internal/model"
 )
 
@@ -61,7 +62,7 @@ func newServeCommand(_ context.Context, logger *slog.Logger, opts *rootOptions) 
 			runCtx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 			defer stop()
 
-			maybeLaunchDesktopCompanion(runCtx, opts.ConfigPath, logger)
+			maybeLaunchDesktopCompanion(runCtx, opts.ConfigPath, configFlagChanged(cmd), logger)
 
 			if err := app.Run(runCtx, cfg, logger); err != nil {
 				return commandErrorf("%v", err)
@@ -71,11 +72,14 @@ func newServeCommand(_ context.Context, logger *slog.Logger, opts *rootOptions) 
 	}
 }
 
-func maybeLaunchDesktopCompanion(ctx context.Context, configPath string, logger *slog.Logger) {
-	if runtime.GOOS != "darwin" {
+func maybeLaunchDesktopCompanion(ctx context.Context, configPath string, _ bool, logger *slog.Logger) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		return
 	}
-	if os.Getenv("LLAMASITTER_DESKTOP_MANAGED") != "" || os.Getenv("LLAMASITTER_NO_DESKTOP_AUTO_LAUNCH") == "1" {
+	if os.Getenv(desktop.EnvManaged) != "" || os.Getenv(desktop.EnvNoDesktopAutoLaunch) == "1" {
+		return
+	}
+	if runtime.GOOS == "linux" && !desktop.IsGraphicalSession() {
 		return
 	}
 
@@ -83,14 +87,6 @@ func maybeLaunchDesktopCompanion(ctx context.Context, configPath string, logger 
 	if err != nil {
 		if logger != nil {
 			logger.Warn("desktop companion auto-launch skipped", "reason", err.Error())
-		}
-		return
-	}
-
-	companionBundlePath := firstExistingPath(desktopCompanionBundleCandidates())
-	if companionBundlePath == "" {
-		if logger != nil {
-			logger.Info("desktop companion not found; continuing without menu icon", "config", resolvedConfigPath)
 		}
 		return
 	}
@@ -105,11 +101,48 @@ func maybeLaunchDesktopCompanion(ctx context.Context, configPath string, logger 
 		case <-timer.C:
 		}
 
-		cmd := exec.Command("/usr/bin/open",
-			"-g",
-			"-j",
-			companionBundlePath,
-			"--args",
+		if runtime.GOOS == "darwin" {
+			companionBundlePath := firstExistingBundlePath(desktopCompanionBundleCandidates())
+			if companionBundlePath == "" {
+				if logger != nil {
+					logger.Info("desktop companion not found; continuing without menu icon", "config", resolvedConfigPath)
+				}
+				return
+			}
+
+			cmd := exec.Command("/usr/bin/open",
+				"-g",
+				"-j",
+				companionBundlePath,
+				"--args",
+				"--config",
+				resolvedConfigPath,
+				"--attach-only",
+			)
+			cmd.Stdout = io.Discard
+			cmd.Stderr = io.Discard
+			if err := cmd.Start(); err != nil {
+				if logger != nil {
+					logger.Warn("desktop companion auto-launch failed", "bundle", companionBundlePath, "error", err.Error())
+				}
+				return
+			}
+			if cmd.Process != nil {
+				_ = cmd.Process.Release()
+			}
+			return
+		}
+
+		companionPath := desktop.FirstExistingPath(desktop.LinuxDesktopExecutableCandidates())
+		if companionPath == "" {
+			if logger != nil {
+				logger.Info("desktop companion not found; continuing without tray agent", "config", resolvedConfigPath)
+			}
+			return
+		}
+
+		cmd := exec.Command(companionPath,
+			"--mode=tray",
 			"--config",
 			resolvedConfigPath,
 			"--attach-only",
@@ -118,7 +151,7 @@ func maybeLaunchDesktopCompanion(ctx context.Context, configPath string, logger 
 		cmd.Stderr = io.Discard
 		if err := cmd.Start(); err != nil {
 			if logger != nil {
-				logger.Warn("desktop companion auto-launch failed", "bundle", companionBundlePath, "error", err.Error())
+				logger.Warn("desktop companion auto-launch failed", "binary", companionPath, "error", err.Error())
 			}
 			return
 		}
@@ -145,7 +178,7 @@ func desktopCompanionBundleCandidates() []string {
 	return candidates
 }
 
-func firstExistingPath(paths []string) string {
+func firstExistingBundlePath(paths []string) string {
 	for _, candidate := range paths {
 		if strings.TrimSpace(candidate) == "" {
 			continue
@@ -277,7 +310,7 @@ func newStatsCommand(_ context.Context, opts *rootOptions) *cobra.Command {
 		Use:   "stats",
 		Short: "Print aggregate usage metrics from local storage",
 		Long: "Read aggregate usage metrics from the local SQLite store. " +
-			"The default table output shows high-level totals, while JSON and YAML output expose the full summary payload including model and contributor breakdowns.",
+			"The default table output renders a compact terminal dashboard with totals, recent activity, breakdowns, sessions, and recent requests, while JSON and YAML output expose the script-friendly summary payload.",
 		Args:  noArgs,
 		Example: "  llamasitter stats --config llamasitter.yaml\n" +
 			"  llamasitter stats --config llamasitter.yaml --output json",
@@ -287,7 +320,7 @@ func newStatsCommand(_ context.Context, opts *rootOptions) *cobra.Command {
 				return usageErrorf("%v", err)
 			}
 
-			cfg, _, err := loadConfig(cmd.Context(), opts.ConfigPath)
+			cfg, resolved, err := loadConfig(cmd.Context(), opts.ConfigPath)
 			if err != nil {
 				return commandErrorf("%v", err)
 			}
@@ -298,34 +331,30 @@ func newStatsCommand(_ context.Context, opts *rootOptions) *cobra.Command {
 			}
 			defer store.Close()
 
-			summary, err := store.UsageSummary(cmd.Context(), model.RequestFilter{})
-			if err != nil {
-				return commandErrorf("%v", err)
-			}
-
 			switch format {
 			case outputJSON:
+				summary, err := store.UsageSummary(cmd.Context(), model.RequestFilter{})
+				if err != nil {
+					return commandErrorf("%v", err)
+				}
 				if err := writeJSON(cmd.OutOrStdout(), summary); err != nil {
 					return commandErrorf("%v", err)
 				}
 			case outputYAML:
+				summary, err := store.UsageSummary(cmd.Context(), model.RequestFilter{})
+				if err != nil {
+					return commandErrorf("%v", err)
+				}
 				if err := writeYAML(cmd.OutOrStdout(), summary); err != nil {
 					return commandErrorf("%v", err)
 				}
 			default:
-				fmt.Fprintf(cmd.OutOrStdout(), "requests\t%d\n", summary.RequestCount)
-				fmt.Fprintf(cmd.OutOrStdout(), "successful\t%d\n", summary.SuccessCount)
-				fmt.Fprintf(cmd.OutOrStdout(), "aborted\t%d\n", summary.AbortedCount)
-				fmt.Fprintf(cmd.OutOrStdout(), "active_sessions\t%d\n", summary.ActiveSessionCount)
-				fmt.Fprintf(cmd.OutOrStdout(), "prompt_tokens\t%d\n", summary.PromptTokens)
-				fmt.Fprintf(cmd.OutOrStdout(), "output_tokens\t%d\n", summary.OutputTokens)
-				fmt.Fprintf(cmd.OutOrStdout(), "total_tokens\t%d\n", summary.TotalTokens)
-				fmt.Fprintf(cmd.OutOrStdout(), "avg_duration_ms\t%.2f\n", summary.AvgRequestDurationMs)
-				if len(summary.ByModel) > 0 {
-					fmt.Fprintln(cmd.OutOrStdout(), "\nby_model:")
-					for _, row := range summary.ByModel {
-						fmt.Fprintf(cmd.OutOrStdout(), "- %s: %d requests, %d total tokens\n", row.Key, row.RequestCount, row.TotalTokens)
-					}
+				snapshot, err := loadStatsSnapshot(cmd.Context(), store, resolved, time.Now())
+				if err != nil {
+					return commandErrorf("%v", err)
+				}
+				if err := renderStatsReport(cmd.OutOrStdout(), snapshot); err != nil {
+					return commandErrorf("%v", err)
 				}
 			}
 

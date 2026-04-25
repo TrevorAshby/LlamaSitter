@@ -1,0 +1,22 @@
+name: llamasitter-desktop
+arch: {{ .Env.NFPM_ARCH }}
+platform: linux
+version: {{ .Env.VERSION }}
+section: utils
+priority: optional
+maintainer: Trevor Ashby
+description: |
+  LlamaSitter Linux desktop shell and CLI for local Ollama observability.
+homepage: https://github.com/trevorashby/llamasitter
+license: MIT
+contents:
+  - src: {{ .Env.STAGE_DIR }}/usr/bin/llamasitter
+    dst: /usr/bin/llamasitter
+  - src: {{ .Env.STAGE_DIR }}/usr/bin/llamasitter-desktop
+    dst: /usr/bin/llamasitter-desktop
+  - src: {{ .Env.STAGE_DIR }}/usr/share/applications/llamasitter.desktop
+    dst: /usr/share/applications/llamasitter.desktop
+  - src: {{ .Env.STAGE_DIR }}/usr/share/applications/llamasitter-tray.desktop
+    dst: /usr/share/applications/llamasitter-tray.desktop
+  - src: {{ .Env.STAGE_DIR }}/usr/share/icons/hicolor/1024x1024/apps/llamasitter.png
+    dst: /usr/share/icons/hicolor/1024x1024/apps/llamasitter.png

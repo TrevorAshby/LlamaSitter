@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=LlamaSitter Tray
+Comment=Background tray agent for LlamaSitter
+Exec=/usr/bin/llamasitter-desktop --mode=tray
+Icon=llamasitter
+Terminal=false
+NoDisplay=true
+Categories=Development;Utility;
+StartupNotify=false

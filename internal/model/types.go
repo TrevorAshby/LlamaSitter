@@ -77,6 +77,7 @@ type UsageSummary struct {
 	TotalTokens          int64          `json:"total_tokens"`
 	AvgRequestDurationMs float64        `json:"avg_request_duration_ms"`
 	ByModel              []BreakdownRow `json:"by_model"`
+	ByListenerName       []BreakdownRow `json:"by_listener_name"`
 	ByClientType         []BreakdownRow `json:"by_client_type"`
 	ByClientInstance     []BreakdownRow `json:"by_client_instance"`
 	ByAgentName          []BreakdownRow `json:"by_agent_name"`

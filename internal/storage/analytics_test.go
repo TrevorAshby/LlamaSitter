@@ -112,6 +112,9 @@ func TestAnalyticsQueriesRespectTimeWindow(t *testing.T) {
 	if len(summary.ByAgentName) != 2 {
 		t.Fatalf("expected 2 agent breakdown rows, got %d", len(summary.ByAgentName))
 	}
+	if len(summary.ByListenerName) != 1 || summary.ByListenerName[0].Key != "default" {
+		t.Fatalf("expected listener breakdown for default, got %#v", summary.ByListenerName)
+	}
 
 	requests, err := store.ListRequests(ctx, model.RequestFilter{
 		StartedAfter:  filter.StartedAfter,

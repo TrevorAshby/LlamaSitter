@@ -5,7 +5,7 @@ LlamaSitter ships with a nested CLI for four jobs:
 - start the proxy and dashboard
 - inspect captured usage data
 - manage config safely without hand-editing YAML
-- locate the macOS desktop app's managed files
+- locate the desktop shell's managed files
 
 If you are new to the project, read this guide top to bottom once. After that, the generated command reference under [`reference/cli`](reference/cli/llamasitter.md) is the fastest way to look up exact flags.
 
@@ -19,7 +19,7 @@ If you are new to the project, read this guide top to bottom once. After that, t
 | `llamasitter tail` | Shows recent captured requests | You want to inspect the latest traffic |
 | `llamasitter export` | Dumps stored requests | You want to analyze data elsewhere |
 | `llamasitter config ...` | Creates, validates, and edits config | You want to change listeners, storage, privacy, or UI settings |
-| `llamasitter desktop ...` | Prints macOS app-managed paths | You want the CLI to target the same files as the desktop app |
+| `llamasitter desktop ...` | Prints desktop-managed paths and helpers | You want the CLI to target the same files as the desktop shell |
 | `llamasitter completion ...` | Generates shell completion scripts | You use the CLI often and want tab completion |
 
 ## Five-Minute Quick Start
@@ -111,7 +111,7 @@ The CLI mirrors that structure:
 
 - runtime commands live at the top level
 - config editing lives under `llamasitter config ...`
-- macOS desktop helpers live under `llamasitter desktop ...`
+- desktop shell helpers live under `llamasitter desktop ...`
 
 ## Config File Basics
 
@@ -200,15 +200,15 @@ llamasitter doctor --config llamasitter.yaml --output json
 
 Use this for a compact usage summary from local storage.
 
-The default table output includes:
+The default terminal output now behaves more like a compact console dashboard for SSH and headless environments. It includes:
 
-- total requests
-- successful requests
-- aborted requests
-- active session count
-- prompt, output, and total tokens
-- average request duration
-- a per-model breakdown
+- config path, generation time, and last-seen request summary
+- high-level request, token, session, and latency totals
+- recent windows for the last 24 hours and last 7 days
+- a 7-day activity trend
+- top breakdowns for models, listeners, client types, instances, and agents
+- top sessions
+- recent requests
 
 Examples:
 
@@ -218,11 +218,12 @@ llamasitter stats --config llamasitter.yaml --output json
 llamasitter stats --config llamasitter.yaml --output yaml
 ```
 
-Important detail: JSON and YAML output are richer than the default table. They include the full summary payload, including contributor breakdowns such as:
+Important detail: JSON and YAML output stay script-friendly. They return the summary payload instead of the dashboard-style terminal view, including breakdowns such as:
 
 - `by_client_type`
 - `by_client_instance`
 - `by_agent_name`
+- `by_listener_name`
 
 The current CLI does not have a dedicated `sessions` command. `stats` reports the active session count, while the dashboard and local API provide the fuller session view.
 
@@ -351,6 +352,8 @@ Precedence is:
 
 That means listener tags are good defaults, but headers always win.
 
+See [Identity And Tags](identity.md) for a deeper explanation of `listener.name`, the built-in identity fields, exact header names, and guidance on which fields belong on listeners versus per request.
+
 ### Managing the dashboard UI
 
 Use these commands to inspect or change the embedded dashboard listener:
@@ -397,9 +400,14 @@ llamasitter config privacy remove-redact-json-field messages
 
 Use `persist_bodies=false` if you want request accounting without storing prompt and response content.
 
-## macOS Desktop Helpers
+## Desktop Helpers
 
-If you use the macOS desktop app, the app manages its own config, database, and logs under `~/Library`.
+If you use a desktop shell, it manages its own config, database, and logs outside the current working directory.
+
+Platform defaults:
+
+- macOS: `~/Library/Application Support/LlamaSitter` and `~/Library/Logs/LlamaSitter`
+- Linux: `~/.config/llamasitter` and `~/.local/state/llamasitter`
 
 Use these commands to print those paths:
 
@@ -409,14 +417,14 @@ llamasitter desktop db path
 llamasitter desktop logs path
 ```
 
-That lets you target the app's config explicitly from the CLI:
+That lets you target the desktop-managed config explicitly from the CLI:
 
 ```bash
 llamasitter config listener list --config "$(llamasitter desktop config path)"
 llamasitter doctor --config "$(llamasitter desktop config path)"
 ```
 
-These helpers are only available on macOS.
+On Linux, `llamasitter desktop autostart status|enable|disable` also manages the tray agent's login autostart entry.
 
 ## Shell Completion
 

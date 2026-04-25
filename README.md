@@ -42,13 +42,13 @@ The current implementation targets a usable alpha:
 - `serve`, `doctor`, `stats`, `tail`, and `export` CLI commands
 - Read-only local API for requests, summaries, sessions, and exports
 - Embedded local web UI for overview metrics and recent activity
+- Desktop runtime helpers plus native macOS and Linux desktop shells
 
 The following are intentionally deferred until after the core proxy path is stable:
 
 - `/api/generate`
 - Embeddings routes
 - OpenAI-compatible routes
-- Desktop tray shells
 - Heuristic auto-attribution
 
 ## Identity Model
@@ -67,6 +67,8 @@ Headers override defaults. The current precedence is:
 1. Explicit `X-LlamaSitter-*` headers
 2. Listener default tags from config
 3. Empty values
+
+See [Identity And Tags](docs/identity.md) for the detailed field-by-field guide, recommended usage, and examples.
 
 ## Example Configuration
 
@@ -125,9 +127,9 @@ Key CLI conventions:
 - Destructive removal commands require `--yes`
 - Most inspect commands support `--output table|json|yaml`
 - `llamasitter stats --output json` exposes a fuller summary than the default table output
-- `llamasitter desktop config path` prints the macOS app-managed config location explicitly
+- `llamasitter desktop config path` prints the desktop-managed config location explicitly
 
-See [CLI Guide](docs/cli.md) for an end-to-end onboarding and workflow guide, and [CLI Reference](docs/reference/cli/llamasitter.md) for the generated command docs.
+See [CLI Guide](docs/cli.md) for an end-to-end onboarding and workflow guide, [Identity And Tags](docs/identity.md) for the attribution model, and [CLI Reference](docs/reference/cli/llamasitter.md) for the generated command docs.
 
 ## Install and Uninstall
 
@@ -162,6 +164,8 @@ The installer does not edit shell startup files. It installs the CLI into `/usr/
 
 On macOS, `llamasitter serve` now best-effort launches the installed menu bar companion automatically when `LlamaSitter.app` is present, so the menu icon and dashboard can attach to the same running service even if you started it from Terminal.
 
+On Linux, the one-line installer still installs the CLI only. The native Linux desktop shell is packaged separately as `.deb` and `.rpm` artifacts.
+
 ## Manual Install Fallback
 
 If you want to build locally from source instead of using a release:
@@ -176,6 +180,18 @@ Build the macOS app bundle locally:
 
 ```bash
 bash ./scripts/build-macos-app.sh
+```
+
+Build the Linux desktop shell and staged package payload locally:
+
+```bash
+bash ./scripts/build-linux-app.sh
+```
+
+Package Linux desktop artifacts with `nfpm`:
+
+```bash
+bash ./scripts/package-linux-desktop.sh
 ```
 
 Package release archives manually:

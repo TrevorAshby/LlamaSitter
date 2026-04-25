@@ -2,12 +2,20 @@
 
 List, inspect, add, update, tag, and remove listeners
 
+Listeners can carry default attribution tags. Common identity keys are `client_type`,
+`client_instance`, `agent_name`, `session_id`, `run_id`, and `workspace`.
+
 ## Usage
 
 ```text
 Usage:
   llamasitter config listener [flags]
   llamasitter config listener [command]
+
+Examples:
+  llamasitter config listener list
+  llamasitter config listener show default
+  llamasitter config listener set-tag default client_type=desktop-app
 
 Available Commands:
   add         Add a new listener to the selected config file

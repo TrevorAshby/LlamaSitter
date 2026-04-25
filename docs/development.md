@@ -8,6 +8,8 @@ LlamaSitter is implemented as a single Go binary with embedded static assets. Th
 
 - `cmd/llamasitter`: program entrypoint
 - `desktop/macos`: native macOS Dock app wrapper
+- `desktop/linux`: native Linux dashboard and tray shell
+- `internal/desktop`: shared desktop runtime path and bootstrap logic
 - `internal/config`: config loading and validation
 - `internal/identity`: request attribution
 - `internal/usage`: Ollama response extraction
@@ -49,4 +51,18 @@ The combined desktop flow is:
 
 When verifying launch behavior, open the `.app` bundle itself rather than executing `Contents/MacOS/LlamaSitter` directly.
 
-The app bundle is produced by [build-macos-app.sh](/Users/trevorashby/Desktop/LlamaSitter/scripts/build-macos-app.sh).
+The app bundle is produced by [build-macos-app.sh](/Users/trevorashby/Desktop/RandomProjects/LlamaSitter.nosync/scripts/build-macos-app.sh).
+
+## Linux Desktop Shell
+
+The Linux desktop shell follows the same architecture split as macOS: the Go backend remains the only request-path binary, and the native shell only manages or attaches to `llamasitter serve`.
+
+The Linux flow is:
+
+1. The shell resolves or creates the desktop-managed runtime under XDG config and state directories
+2. The tray mode starts or attaches to `llamasitter serve --config ...`
+3. The dashboard mode ensures the tray agent is running
+4. The dashboard loads the embedded web UI into a native window
+5. The tray menu polls `GET /readyz` and `GET /api/desktop/overview`
+
+The staged Linux app payload is produced by [build-linux-app.sh](/Users/trevorashby/Desktop/RandomProjects/LlamaSitter.nosync/scripts/build-linux-app.sh), and native packages are emitted through [package-linux-desktop.sh](/Users/trevorashby/Desktop/RandomProjects/LlamaSitter.nosync/scripts/package-linux-desktop.sh).

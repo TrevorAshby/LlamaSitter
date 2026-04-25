@@ -227,6 +227,7 @@ if [ "${OS}" = "darwin" ]; then
   fi
 else
   say "LlamaSitter CLI installed successfully."
+  say "The Linux desktop shell is distributed separately as native .deb and .rpm packages."
   say "Next steps:"
   say "  llamasitter config init"
   say "  llamasitter serve --config llamasitter.yaml"

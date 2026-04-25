@@ -213,8 +213,12 @@ func newConfigListenerCommand(opts *rootOptions) *cobra.Command {
 		Use:   "listener",
 		Short: "List, inspect, add, update, tag, and remove listeners",
 		Long: "Manage the configured proxy listeners. " +
-			"Each listener defines a local bind address, an upstream Ollama base URL, and optional default attribution tags that are applied when requests do not provide explicit X-LlamaSitter-* headers.",
+			"Each listener defines a local bind address, an upstream Ollama base URL, and optional default attribution tags that are applied when requests do not provide explicit X-LlamaSitter-* headers. " +
+			"Common identity keys are client_type, client_instance, agent_name, session_id, run_id, and workspace.",
 		Args:  noArgs,
+		Example: "  llamasitter config listener list\n" +
+			"  llamasitter config listener show default\n" +
+			"  llamasitter config listener set-tag default client_type=desktop-app",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
 			return silentExit(2)
@@ -336,10 +340,12 @@ func newConfigListenerAddCommand(opts *rootOptions) *cobra.Command {
 		Use:   "add",
 		Short: "Add a new listener to the selected config file",
 		Long: "Add a new listener to the selected config file. " +
-			"A listener needs a name, a local listen address, and an upstream Ollama base URL, and it can optionally define default attribution tags.",
+			"A listener needs a name, a local listen address, and an upstream Ollama base URL, and it can optionally define default attribution tags. " +
+			"Stable fields like client_type, client_instance, and workspace are often good listener defaults.",
 		Args:  noArgs,
 		Example: "  llamasitter config listener add --name openwebui --listen-addr 127.0.0.1:11436 --upstream-url http://127.0.0.1:11434\n" +
-			"  llamasitter config listener add --name openwebui --listen-addr 0.0.0.0:11436 --upstream-url http://127.0.0.1:11434 --tag client_type=openwebui --tag client_instance=docker",
+			"  llamasitter config listener add --name openwebui --listen-addr 0.0.0.0:11436 --upstream-url http://127.0.0.1:11434 --tag client_type=openwebui --tag client_instance=docker\n" +
+			"  llamasitter config listener add --name agentbox --listen-addr 127.0.0.1:11437 --upstream-url http://127.0.0.1:11434 --tag workspace=/srv/agentbox",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(name) == "" || strings.TrimSpace(listenAddr) == "" || strings.TrimSpace(upstreamURL) == "" {
 				_ = cmd.Usage()
@@ -371,7 +377,7 @@ func newConfigListenerAddCommand(opts *rootOptions) *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "listener name")
 	cmd.Flags().StringVar(&listenAddr, "listen-addr", "", "listener bind address, for example 127.0.0.1:11435")
 	cmd.Flags().StringVar(&upstreamURL, "upstream-url", "", "upstream Ollama base URL")
-	cmd.Flags().StringSliceVar(&tags, "tag", nil, "default tag assignment in KEY=VALUE form (repeatable)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "default tag assignment in KEY=VALUE form (repeatable); common keys: client_type, client_instance, agent_name, session_id, run_id, workspace")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the updated config without writing it")
 	return cmd
 }
@@ -435,9 +441,11 @@ func newConfigListenerSetTagCommand(opts *rootOptions) *cobra.Command {
 		Use:   "set-tag NAME KEY=VALUE",
 		Short: "Set or replace one default tag on a listener",
 		Long: "Set or replace one default attribution tag on a listener. " +
-			"These tags are used when incoming requests do not send explicit X-LlamaSitter-* headers for the same fields.",
+			"These tags are used when incoming requests do not send explicit X-LlamaSitter-* headers for the same fields. " +
+			"Good listener defaults are usually stable fields like client_type, client_instance, and workspace; session_id and run_id are usually better sent per request.",
 		Args:  exactArgs(2),
 		Example: "  llamasitter config listener set-tag openwebui client_type=openwebui\n" +
+			"  llamasitter config listener set-tag openwebui client_instance=docker\n" +
 			"  llamasitter config listener set-tag openwebui workspace=/Users/me/project",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, value, err := splitTag(args[1])
@@ -466,7 +474,7 @@ func newConfigListenerUnsetTagCommand(opts *rootOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "unset-tag NAME KEY",
 		Short:   "Remove one default tag from a listener",
-		Long:    "Remove one default attribution tag from a listener.",
+		Long:    "Remove one default attribution tag from a listener. This only removes the listener default and does not affect explicit X-LlamaSitter-* headers sent by callers.",
 		Args:    exactArgs(2),
 		Example: "  llamasitter config listener unset-tag openwebui client_type",
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -52,7 +52,7 @@ func newRootCommand(ctx context.Context, logger *slog.Logger, stdout, stderr io.
 		newVersionCommand(),
 		newCompletionCommand(),
 		newConfigCommand(ctx, logger, opts),
-		newDesktopCommand(),
+		newDesktopCommand(opts),
 	)
 
 	disableAutoGenTag(cmd)

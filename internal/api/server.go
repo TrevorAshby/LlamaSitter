@@ -59,6 +59,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/usage/summary", s.handleUsageSummary)
 	mux.HandleFunc("/api/usage/timeseries", s.handleUsageTimeseries)
 	mux.HandleFunc("/api/usage/heatmap", s.handleUsageHeatmap)
+	mux.HandleFunc("/api/desktop/overview", s.handleDesktopOverview)
 	mux.HandleFunc("/api/sessions", s.handleSessions)
 	mux.HandleFunc("/api/sessions/", s.handleSessionByID)
 	mux.HandleFunc("/api/export/requests.json", s.handleExportJSON)

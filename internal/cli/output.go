@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trevorashby/llamasitter/internal/config"
 	"github.com/trevorashby/llamasitter/internal/configedit"
+	"github.com/trevorashby/llamasitter/internal/desktop"
 	"gopkg.in/yaml.v3"
 )
 
@@ -118,9 +119,12 @@ func loadConfigDocument(path string) (*configedit.Document, string, error) {
 }
 
 func restartHint(path string) string {
-	if runtime.GOOS == "darwin" {
-		if desktop, err := desktopPaths(); err == nil && sameFilePath(path, desktop.Config) {
-			return "Restart the desktop app to apply the updated config:\n  open -a LlamaSitter"
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
+		if managed, err := desktop.ManagedPaths(); err == nil && sameFilePath(path, managed.Config) {
+			if runtime.GOOS == "darwin" {
+				return "Restart the desktop app to apply the updated config:\n  open -a LlamaSitter"
+			}
+			return "Restart the desktop companion to apply the updated config:\n  llamasitter-desktop --mode=dashboard"
 		}
 	}
 	return fmt.Sprintf("Restart LlamaSitter to apply the updated config:\n  llamasitter serve --config %s", path)

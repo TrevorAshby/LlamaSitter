@@ -2,6 +2,9 @@
 
 Print aggregate usage metrics from local storage
 
+The default terminal view renders a dense SSH-friendly dashboard with totals, recent windows,
+trend lines, breakdowns, top sessions, and recent requests. JSON and YAML remain summary-only.
+
 ## Examples
 
 ```text

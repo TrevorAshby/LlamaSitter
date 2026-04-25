@@ -2,6 +2,9 @@
 
 Remove one default tag from a listener
 
+This only removes the listener default. It does not affect explicit
+`X-LlamaSitter-*` headers sent by callers.
+
 ## Examples
 
 ```text
